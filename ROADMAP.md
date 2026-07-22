@@ -33,11 +33,11 @@ built on the NXP FRDM-MCXN236 (Zephyr RTOS).
 
 **Requisites:** working `west` workspace, Zephyr SDK, a Zephyr revision that includes the `frdm_mcxn236` board (already maintained upstream).
 
-- [ ] Confirm the board is available: `west boards | grep frdm_mcxn236`
-- [ ] Create the application skeleton (`app/`, `CMakeLists.txt`, `prj.conf`, `boards/frdm_mcxn236.overlay`)
-- [ ] Build & flash `hello_world` to confirm board bring-up:
+- [x] Confirm the board is available: `west boards | grep frdm_mcxn236`
+- [x] Create the application skeleton (`app/`, `CMakeLists.txt`, `prj.conf`, `boards/frdm_mcxn236.overlay`)
+- [x] Build & flash `hello_world` to confirm board bring-up:
       `west build -b frdm_mcxn236/mcxn236 samples/hello_world && west flash`
-- [ ] Confirm serial console on J10 (115200 8N1)
+- [x] Confirm serial console on J10 (115200 8N1)
 
 ## 1. Display bring-up — ILI9341 over GPIO-bitbang MIPI-DBI
 
