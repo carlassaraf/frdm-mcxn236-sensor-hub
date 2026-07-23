@@ -22,7 +22,8 @@ built on the NXP FRDM-MCXN236 (Zephyr RTOS).
 - Sensor-sampling thread → writes a mutex-protected `sensor_snapshot` struct
 - CAN TX thread → reads snapshot under mutex, sends periodic CAN-FD telemetry frames (loopback)
 - Button/accelerometer GPIO ISR → `k_work` (workqueue) → wakes display, triggers immediate telemetry
-- LVGL workqueue (built into Zephyr's LVGL module) → reads snapshot under mutex, refreshes UI
+- Dedicated LVGL thread (calls `lv_timer_handler()` in a loop — no built-in workqueue refresh in
+  mainline Zephyr, see section 2) → reads snapshot under mutex, refreshes UI
 - App layer in C++; drivers and Zephyr subsystem glue stay in C
 - MCUboot-signed image (chain-of-trust secure boot)
 - Sleep-by-default / wake-on-event power management
@@ -76,12 +77,20 @@ built on the NXP FRDM-MCXN236 (Zephyr RTOS).
 
 **Requisites:** Zephyr's LVGL module (currently v9.x) enabled; SquareLine Studio project set to LVGL v9, 240×320, RGB565.
 
-- [ ] Enable `CONFIG_LVGL=y`, 16-bit color depth, `CONFIG_LV_Z_RUN_LVGL_ON_WORKQUEUE=y`
-- [ ] Build & flash a built-in LVGL demo (`samples/modules/lvgl/demos`) to confirm the full pipeline first
+- [x] Enable `CONFIG_LVGL=y`, 16-bit color depth (`CONFIG_LV_COLOR_DEPTH_16=y`, `CONFIG_LV_COLOR_16_SWAP=y`)
+- [x] Build a built-in LVGL demo (`../deps/zephyr/samples/modules/lvgl/demos`) to confirm the full
+      pipeline — built clean 2026-07-23 (music demo, 90.55% flash / 54.55% RAM):
+```sh
+west build -b frdm_mcxn236 ../deps/zephyr/samples/modules/lvgl/demos -p -- \
+  -DEXTRA_DTC_OVERLAY_FILE=$(pwd)/app/boards/frdm_mcxn236.overlay \
+  -DEXTRA_CONF_FILE=$(pwd)/app/prj.conf
+```
 - [ ] Design the dashboard in SquareLine Studio (project settings: LVGL v9.x, 240×320, RGB565)
 - [ ] Export the UI-only project, copy generated `ui/` sources into `src/ui/`
-- [ ] Call `ui_init()` right after `lvgl_init()` runs in `main()`
-- [ ] Wrap every `lv_obj_*` call made from the sensor/CAN threads in `lvgl_lock()` / `lvgl_unlock()`
+- [ ] Call `ui_init()` right after LVGL's own `SYS_INIT`-driven init runs
+- [ ] Since there's no built-in `lvgl_lock()`/`lvgl_unlock()` in mainline: add a dedicated thread
+      that calls `lv_timer_handler()` in a loop, and a `k_mutex` the sensor/CAN threads must take
+      before any `lv_obj_*` call from outside that thread
 
 ## 3. Custom sensor driver (from scratch)
 
@@ -101,7 +110,7 @@ built on the NXP FRDM-MCXN236 (Zephyr RTOS).
 - [ ] Sensor-sampling thread: periodic `k_thread` polling the FXLS8974 accelerometer + the custom sensor, writes snapshot under mutex
 - [ ] CAN TX thread: reads snapshot under mutex, packs into a CAN-FD frame, sends periodically
 - [ ] Button/accelerometer GPIO ISR → `k_work` on a workqueue for debounced handling (wake display, trigger immediate telemetry)
-- [ ] LVGL workqueue reads the snapshot under mutex to refresh widgets
+- [ ] Dedicated LVGL thread reads the snapshot under mutex to refresh widgets
 - [ ] Keep every mutex-held critical section short — no I2C/CAN transactions while holding the lock
 
 ## 5. CAN (FlexCAN, loopback only)
