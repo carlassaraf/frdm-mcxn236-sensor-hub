@@ -1,0 +1,16 @@
+{
+  "codename": "InterSemiBold16",
+  "ttf_path": "/assets/fonts/Inter_18pt-SemiBold.ttf",
+  "bin_path": "/assets/fonts/ui_font_InterSemiBold16.bin",
+  "c_path": "/assets/fonts/ui_font_InterSemiBold16.c",
+  "cfg_path": "/assets/fonts/ui_font_InterSemiBold16.fcfg",
+  "size": 16,
+  "bpp": 4,
+  "letters": 0,
+  "ranges": [
+    "0x20-0x7f"
+  ],
+  "symbols": "",
+  "customparams": "--no-compress --no-prefilter",
+  "uploaded": false
+}

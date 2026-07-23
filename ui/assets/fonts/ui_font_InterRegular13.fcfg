@@ -1,0 +1,16 @@
+{
+  "codename": "InterRegular13",
+  "ttf_path": "/assets/fonts/Inter_18pt-Regular.ttf",
+  "bin_path": "/assets/fonts/ui_font_InterRegular13.bin",
+  "c_path": "/assets/fonts/ui_font_InterRegular13.c",
+  "cfg_path": "/assets/fonts/ui_font_InterRegular13.fcfg",
+  "size": 13,
+  "bpp": 4,
+  "letters": 0,
+  "ranges": [
+    "0x20-0x7f"
+  ],
+  "symbols": "",
+  "customparams": "--no-compress --no-prefilter",
+  "uploaded": false
+}

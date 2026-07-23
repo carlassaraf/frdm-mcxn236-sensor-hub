@@ -1,0 +1,16 @@
+{
+  "codename": "InterBold28",
+  "ttf_path": "/assets/fonts/Inter_28pt-Bold.ttf",
+  "bin_path": "/assets/fonts/ui_font_InterBold28.bin",
+  "c_path": "/assets/fonts/ui_font_InterBold28.c",
+  "cfg_path": "/assets/fonts/ui_font_InterBold28.fcfg",
+  "size": 28,
+  "bpp": 4,
+  "letters": 0,
+  "ranges": [
+    "0x20-0x7f"
+  ],
+  "symbols": "",
+  "customparams": "--no-compress --no-prefilter",
+  "uploaded": false
+}
