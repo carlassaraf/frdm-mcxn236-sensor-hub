@@ -1,6 +1,7 @@
 SET(SOURCES screens/ui_scrSplash.c
     screens/ui_scrOverview.c
     screens/ui_scrTilt.c
+    screens/ui_scrEnvironment.c
     ui_theme_manager.c
     ui_themes.c
     ui.c

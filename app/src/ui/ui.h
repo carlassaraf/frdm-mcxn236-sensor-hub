@@ -21,6 +21,7 @@ extern "C" {
 #include "screens/ui_scrSplash.h"
 #include "screens/ui_scrOverview.h"
 #include "screens/ui_scrTilt.h"
+#include "screens/ui_scrEnvironment.h"
 
 ///////////////////// VARIABLES ////////////////////
 
