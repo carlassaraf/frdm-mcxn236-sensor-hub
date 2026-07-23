@@ -64,11 +64,13 @@ built on the NXP FRDM-MCXN236 (Zephyr RTOS).
 | RD     | A0  | 0  |
 | RST    | A4  | 4  |
 
-- [ ] Write `boards/frdm_mcxn236.overlay`: `mipi_dbi` bitbang node (`data-gpios`, `cs-gpios`, `wr-gpios`, `rd-gpios`, `dc-gpios`, `reset-gpios`) + child `ili9341@0` node, `mipi-mode = "MIPI_DBI_MODE_8080_BUS_8_BIT"`, `width = <240>`, `height = <320>`
-- [ ] Set `zephyr,display` chosen node to the ILI9341 instance
-- [ ] Enable `CONFIG_DISPLAY=y`, `CONFIG_MIPI_DBI=y`, `CONFIG_ILI9341=y`
-- [ ] Run `samples/display` (checkerboard/pattern test) to confirm bring-up before touching LVGL
-- [ ] Check refresh performance; if sluggish, confirm the driver's same-GPIO-port fast path (data LUT) is active for the 8-bit bus
+- [x] Write `boards/frdm_mcxn236.overlay`: `mipi_dbi` bitbang node (`data-gpios`, `cs-gpios`, `wr-gpios`, `rd-gpios`, `dc-gpios`, `reset-gpios`) + child `ili9341@0` node, `mipi-mode = "MIPI_DBI_MODE_8080_BUS_8_BIT"`, `width = <240>`, `height = <320>`
+- [x] Set `zephyr,display` chosen node to the ILI9341 instance
+- [x] Enable `CONFIG_DISPLAY=y`, `CONFIG_MIPI_DBI=y`
+- [x] Run `samples/drivers/display` (checkerboard/pattern test) to confirm bring-up before touching LVGL
+- [x] Check refresh performance; if sluggish, confirm the driver's same-GPIO-port fast path (data LUT) is active for the 8-bit bus
+
+> **Checked 2026-07-23:** it isn't. `mipi_dbi_bitbang.c` only enables the LUT when all 8 `data-gpios` sit on one GPIO port; ours span three (`gpio0`: DB0/DB4/DB7, `gpio2`: DB2/DB5, `gpio3`: DB1/DB3/DB6), so `single_port` is false and every byte costs 8 individual `gpio_pin_set_dt()` calls instead of one `gpio_port_set_masked()`. Verify via `CONFIG_MIPI_DBI_LOG_LEVEL_DBG=y` — no "LUT optimization enabled" line at boot confirms the slow path. Only fix is rewiring all 8 data lines onto a single port; otherwise accept the slower bitbang path.
 
 ## 2. LVGL + SquareLine Studio UI
 

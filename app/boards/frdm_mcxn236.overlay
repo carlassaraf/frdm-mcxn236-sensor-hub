@@ -1,3 +1,59 @@
 /**
  * Overlay for project
  */
+
+&gpio2 {
+  status = "okay";
+};
+
+&gpio3 {
+  status = "okay";
+};
+
+/ {
+  chosen {
+    zephyr,display = &ili9341;
+  };
+
+  mipi_dbi_par: mipi-dbi-parallel {
+    compatible = "zephyr,mipi-dbi-bitbang";
+    /*
+     * lcdwiki/MCUFRIEND 2.4" ILI9341 shield (nRF5340 DK Arduino header):
+     *   A0=P0.04 → RD      A1=P0.05 → WR
+     *   A2=P0.06 → RS/DC   A3=P0.07 → CS (active-low)
+     *   A4=P0.25 → RST     (active-low)
+     */
+    reset-gpios = <&gpio4 12  GPIO_ACTIVE_LOW>;   /* A4 = RST   */
+    cs-gpios    = <&gpio4 17  GPIO_ACTIVE_LOW>;   /* A3 = CS    */
+    dc-gpios    = <&gpio4 16  GPIO_ACTIVE_HIGH>;  /* A2 = RS/DC */
+    wr-gpios    = <&gpio4 15  GPIO_ACTIVE_HIGH>;  /* A1 = WR    */
+    rd-gpios    = <&gpio4 6   GPIO_ACTIVE_HIGH>;  /* A0 = RD    */
+    /*
+     * MCUFRIEND wiring: DB0→D8, DB1→D9, DB2→D2 … DB7→D7
+     * (data-gpios[i] → bit i of the byte → DBi of controller)
+     *   DB0=D8=P0.23  DB1=D9=P3.14  DB2=D2=P2.0  DB3=D3=P3.12
+     *   DB4=D4=P0.21  DB5=D5=P2.7   DB6=D6=P3.17 DB7=D7=P0.22
+     */
+    data-gpios  = <&gpio0 23 GPIO_ACTIVE_HIGH>,   /* DB0 = D8 */
+                  <&gpio3 14 GPIO_ACTIVE_HIGH>,   /* DB1 = D9 */
+                  <&gpio2  0 GPIO_ACTIVE_HIGH>,   /* DB2 = D2 */
+                  <&gpio3 12 GPIO_ACTIVE_HIGH>,   /* DB3 = D3 */
+                  <&gpio0 21 GPIO_ACTIVE_HIGH>,   /* DB4 = D4 */
+                  <&gpio2  7 GPIO_ACTIVE_HIGH>,   /* DB5 = D5 */
+                  <&gpio3 17 GPIO_ACTIVE_HIGH>,   /* DB6 = D6 */
+                  <&gpio0 22 GPIO_ACTIVE_HIGH>;   /* DB7 = D7 */
+    #address-cells = <1>;
+    #size-cells    = <0>;
+
+    ili9341: ili9341@0 {
+      compatible        = "ilitek,ili9341";
+      reg               = <0>;
+      mipi-mode         = "MIPI_DBI_MODE_8080_BUS_8_BIT";
+      mipi-max-frequency = <10000000>;
+      pixel-format      = <0>; /* 0 = RGB565 */
+      width             = <240>;
+      height            = <320>;
+      rotation          = <90>;   /* 0 | 90 | 180 | 270 CW — adjust to match physical mount */
+    };
+  };
+};
