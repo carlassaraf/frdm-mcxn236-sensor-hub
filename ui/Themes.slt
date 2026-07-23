@@ -1,0 +1,117 @@
+{
+  "deftheme": {
+    "name": "Default",
+    "properties": [
+      {
+        "nid": 1000206,
+        "strtype": "THEME_COLOR",
+        "strval": "bg0",
+        "intarray": [
+          11,
+          15,
+          20,
+          255
+        ],
+        "InheritedType": 0
+      },
+      {
+        "nid": 1000207,
+        "strtype": "THEME_COLOR",
+        "strval": "bg2",
+        "intarray": [
+          28,
+          36,
+          44,
+          255
+        ],
+        "InheritedType": 0
+      },
+      {
+        "nid": 1000208,
+        "strtype": "THEME_COLOR",
+        "strval": "ln0",
+        "intarray": [
+          42,
+          52,
+          61,
+          255
+        ],
+        "InheritedType": 0
+      },
+      {
+        "nid": 1000210,
+        "strtype": "THEME_COLOR",
+        "strval": "tx1",
+        "intarray": [
+          232,
+          237,
+          242,
+          255
+        ],
+        "InheritedType": 0
+      },
+      {
+        "nid": 1000211,
+        "strtype": "THEME_COLOR",
+        "strval": "tx2",
+        "intarray": [
+          138,
+          151,
+          163,
+          255
+        ],
+        "InheritedType": 0
+      },
+      {
+        "nid": 1000212,
+        "strtype": "THEME_COLOR",
+        "strval": "acc",
+        "intarray": [
+          47,
+          211,
+          194,
+          255
+        ],
+        "InheritedType": 0
+      },
+      {
+        "nid": 1000213,
+        "strtype": "THEME_COLOR",
+        "strval": "okg",
+        "intarray": [
+          61,
+          220,
+          132,
+          255
+        ],
+        "InheritedType": 0
+      },
+      {
+        "nid": 1000214,
+        "strtype": "THEME_COLOR",
+        "strval": "wrn",
+        "intarray": [
+          245,
+          166,
+          35,
+          255
+        ],
+        "InheritedType": 0
+      },
+      {
+        "nid": 1000215,
+        "strtype": "THEME_COLOR",
+        "strval": "err",
+        "intarray": [
+          229,
+          72,
+          77,
+          255
+        ],
+        "InheritedType": 0
+      }
+    ]
+  },
+  "themes": [],
+  "selected_theme": "Default"
+}
