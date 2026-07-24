@@ -19,11 +19,15 @@ built on the NXP FRDM-MCXN236 (Zephyr RTOS).
 
 ## Architecture summary
 
-- Sensor-sampling thread → writes a mutex-protected `sensor_snapshot` struct
+- Sensor-sampling thread → writes a mutex-protected `sensor_snapshot` struct (raw readings, consumed by CAN)
 - CAN TX thread → reads snapshot under mutex, sends periodic CAN-FD telemetry frames (loopback)
-- Button/accelerometer GPIO ISR → `k_work` (workqueue) → wakes display, triggers immediate telemetry
-- Dedicated LVGL thread (calls `lv_timer_handler()` in a loop — no built-in workqueue refresh in
-  mainline Zephyr, see section 2) → reads snapshot under mutex, refreshes UI
+- Input service: GPIO interrupt (not polling) → `k_work` debounce → requests a screen change
+- A dedicated **UI Manager** owns a dedicated LVGL thread and is the *only* code that ever touches
+  an `lv_obj_t*` — no built-in `lvgl_lock()`/`lvgl_unlock()` exists in mainline, so this ownership
+  boundary is what replaces it. Sensor/CAN/input threads never touch LVGL directly; they push
+  UI-relevant derived state into a shared, mutex-protected `device_state` struct and wake the UI
+  Manager via a coalescing semaphore. Screens are lazily created/destroyed on switch (only the
+  active screen's LVGL objects exist at a time). Full design: **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 - App layer in C++; drivers and Zephyr subsystem glue stay in C
 - MCUboot-signed image (chain-of-trust secure boot)
 - Sleep-by-default / wake-on-event power management
@@ -85,12 +89,20 @@ west build -b frdm_mcxn236 ../deps/zephyr/samples/modules/lvgl/demos -p -- \
   -DEXTRA_DTC_OVERLAY_FILE=$(pwd)/app/boards/frdm_mcxn236.overlay \
   -DEXTRA_CONF_FILE=$(pwd)/app/prj.conf
 ```
-- [ ] Design the dashboard in SquareLine Studio (project settings: LVGL v9.x, 240×320, RGB565)
-- [ ] Export the UI-only project, copy generated `ui/` sources into `src/ui/`
-- [ ] Call `ui_init()` right after LVGL's own `SYS_INIT`-driven init runs
-- [ ] Since there's no built-in `lvgl_lock()`/`lvgl_unlock()` in mainline: add a dedicated thread
-      that calls `lv_timer_handler()` in a loop, and a `k_mutex` the sensor/CAN threads must take
-      before any `lv_obj_*` call from outside that thread
+- [x] Design the dashboard in SquareLine Studio (project settings: LVGL v9.x, 240×320, RGB565)
+- [x] Export the UI-only project, copy generated `ui/` sources into `src/ui/`
+- [x] Call `ui_init()` right after LVGL's own `SYS_INIT`-driven init runs
+- [x] Design the threaded UI ownership model (dedicated LVGL thread, shared `device_state`,
+      lazy screen load/destroy) — see **[ARCHITECTURE.md](ARCHITECTURE.md)**
+- [ ] Implement the **UI Manager**: dedicated LVGL thread owning all `lv_obj_t*` access, the
+      screen table (`init`/`destroy`/`apply` per screen), and the lazy load/destroy + hydrate
+      sequencing (reusing the generated lazy-init screen-change helper and the generated
+      per-screen `destroy()`'s existing pointer-nulling — don't reimplement either)
+- [ ] Implement the shared `device_state` struct + its `k_mutex`, plus the coalescing binary
+      semaphore that wakes the UI Manager thread on change (see ARCHITECTURE.md's
+      synchronization model — no message queue, latest-value-wins everywhere)
+- [ ] Implement one adapter module per screen translating `device_state` → that screen's widgets;
+      keep these in new hand-written files, never inside the generated `screens/*.c`
 
 ## 3. Custom sensor driver (from scratch)
 
@@ -106,12 +118,25 @@ west build -b frdm_mcxn236 ../deps/zephyr/samples/modules/lvgl/demos -p -- \
 
 ## 4. Threading / concurrency architecture
 
-- [ ] Define shared `struct sensor_snapshot` (accel xyz + distance/whatever the custom sensor reports), protected by a `k_mutex`
-- [ ] Sensor-sampling thread: periodic `k_thread` polling the FXLS8974 accelerometer + the custom sensor, writes snapshot under mutex
-- [ ] CAN TX thread: reads snapshot under mutex, packs into a CAN-FD frame, sends periodically
-- [ ] Button/accelerometer GPIO ISR → `k_work` on a workqueue for debounced handling (wake display, trigger immediate telemetry)
-- [ ] Dedicated LVGL thread reads the snapshot under mutex to refresh widgets
-- [ ] Keep every mutex-held critical section short — no I2C/CAN transactions while holding the lock
+**See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design** (component map, synchronization
+model, screen lifecycle, thread priority rationale). Summary of the concrete build steps:
+
+- [ ] Define shared `struct sensor_snapshot` (accel xyz + custom sensor reading), protected by its
+      own `k_mutex` — raw readings, consumed by the CAN service for telemetry packing
+- [ ] Define the shared `device_state` struct (UI-facing *derived* fields: status enums, tilt
+      xyz, env value/unit/status, CAN counters) per ARCHITECTURE.md, with its own `k_mutex` +
+      coalescing binary semaphore — separate from `sensor_snapshot`, owned by the UI Manager
+- [ ] Sensor-sampling thread: periodic `k_thread` polling the FXLS8974 accelerometer + the custom
+      sensor; writes `sensor_snapshot` under its mutex, computes derived status once, and pushes
+      it into `device_state` via the UI Manager's setters
+- [ ] CAN TX thread: reads `sensor_snapshot` under its mutex, packs into a CAN-FD frame, sends
+      periodically, and pushes CAN status/counters into `device_state`
+- [ ] Input service: button GPIO interrupt (not polling) → `k_work` debounce → requests a screen
+      change through the UI Manager's navigation API (atomic "requested screen" + wake semaphore)
+      — never touches `lv_obj_t*` or `device_state` directly
+- [ ] UI Manager thread reads `device_state` under its mutex to refresh the active screen's widgets
+- [ ] Keep every mutex-held critical section short — no I2C/CAN/display-driver calls while holding
+      either lock
 
 ## 5. CAN (FlexCAN, loopback only)
 
