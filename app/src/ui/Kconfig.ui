@@ -1,0 +1,7 @@
+config UI_THREAD_STACK_SIZE
+  int "Size of the stack dedicated for the UI thread"
+  default 8192
+
+config UI_THREAD_PRIORITY
+  int "Priority of UI thread"
+  default 5
