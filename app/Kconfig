@@ -1,0 +1,2 @@
+rsource "src/ui/Kconfig.ui"
+source "Kconfig.zephyr"
