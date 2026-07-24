@@ -6,8 +6,19 @@
 #include <zephyr/input/input.h>
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/app_version.h>
 
 LOG_MODULE_REGISTER(ui_manager, LOG_LEVEL_INF);
+
+// Private prototypes
+static void lvgl_thread(void *arg1, void *arg2, void *arg3);
+static void ui_go_to_screen(screen_id_t screen);
+static void ui_manager_input_cb(struct input_event *evt, void *user_data);
+
+// Screen specific prototypes
+
+static void scrSplash_postinit(void);
+static void scrOverview_postinit(void);
 
 // Screen struct definition
 typedef struct {
@@ -19,12 +30,12 @@ typedef struct {
   void (*step)(void);
 } screen_t;
 
-#define UI_SCREEN(name, scrObj, post, step) {name, &scrObj, scrObj##_screen_init, scrObj##_screen_destroy}
+#define UI_SCREEN(name, scrObj, post, step) {name, &scrObj, scrObj##_screen_init, scrObj##_screen_destroy, post, step}
 
 // Screen registration
 static screen_t screens[] = {
-  [SCREEN_SPLASH]       = UI_SCREEN("Splash", ui_scrSplash, NULL, NULL),
-  [SCREEN_OVERVIEW]     = UI_SCREEN("Overview", ui_scrOverview, NULL, NULL),
+  [SCREEN_SPLASH]       = UI_SCREEN("Splash", ui_scrSplash, scrSplash_postinit, NULL),
+  [SCREEN_OVERVIEW]     = UI_SCREEN("Overview", ui_scrOverview, scrOverview_postinit, NULL),
   [SCREEN_TILT]         = UI_SCREEN("Tilt", ui_scrTilt, NULL, NULL),
   [SCREEN_ENVIRONMENT]  = UI_SCREEN("Environment", ui_scrEnvironment, NULL, NULL),
   [SCREEN_CAN]          = UI_SCREEN("CAN", ui_scrCan, NULL, NULL),
@@ -46,11 +57,7 @@ static const struct device *s_display;
 static lv_obj_t *s_sleep_overlay;
 static bool s_display_sleeping = false;
 
-// Private prototypes
-static void lvgl_thread(void *arg1, void *arg2, void *arg3);
-static void ui_go_to_screen(screen_id_t screen);
-static void ui_manager_input_cb(struct input_event *evt, void *user_data);
-
+// Register callback for input switches
 INPUT_CALLBACK_DEFINE(DEVICE_DT_GET(DT_PATH(gpio_keys)), ui_manager_input_cb, NULL);
 
 void ui_manager_init(void)
@@ -91,6 +98,8 @@ static void lvgl_thread(void *arg1, void *arg2, void *arg3)
   bool overlay_visible = false;
 
   while (1) {
+    // Get current screen
+    screen_t curr = screens[s_current_screen];
     // Sync the sleep overlay with the latest SW2 request
     if (s_display_sleeping != overlay_visible) {
       if (s_display_sleeping) {
@@ -103,7 +112,6 @@ static void lvgl_thread(void *arg1, void *arg2, void *arg3)
 
     // Check if there is a pending screen to change to
     if (s_current_screen != s_pending_screen) {
-      screen_t curr = screens[s_current_screen];
       screen_t next = screens[s_pending_screen];
       LOG_INF("Changing screen to %s", next.name);
       // Change to pending screen and create widgets on spot
@@ -111,6 +119,7 @@ static void lvgl_thread(void *arg1, void *arg2, void *arg3)
         _ui_screen_change(next.scr, LV_SCR_LOAD_ANIM_NONE, 0, 0, next.init);
         // After screen creation and transition, run any available port creation
         if (next.postinit) {
+          LOG_INF("Calling post-init function for %s", next.name);
           next.postinit();
         }
       } if (curr.destroy) {
@@ -120,7 +129,10 @@ static void lvgl_thread(void *arg1, void *arg2, void *arg3)
       // Update screen tracking
       s_current_screen = s_pending_screen;
     }
-    // Run any available 
+    // Run any available step callback
+    if(curr.step) {
+      curr.step();
+    }
 
     lv_timer_handler();
     k_msleep(10);
@@ -165,4 +177,15 @@ static void ui_manager_input_cb(struct input_event *evt, void *user_data)
   default:
     break;
   }
+}
+
+
+static void scrSplash_postinit(void)
+{
+  lv_label_set_text_fmt(ui_splashVersion, "FRDM-MCXN236 - v%s (%s)", APP_VERSION_STRING, STRINGIFY(APP_BUILD_VERSION));
+}
+
+static void scrOverview_postinit(void)
+{
+  lv_label_set_text_fmt(ui_overviewVersion, "FRDM-MCXN236 - v%s (%s)", APP_VERSION_STRING, STRINGIFY(APP_BUILD_VERSION));
 }
