@@ -1,12 +1,13 @@
-/**
- * Overlay for project
- */
-
 &gpio2 {
   status = "okay";
 };
 
 &gpio3 {
+  status = "okay";
+};
+
+/* SW2 (user_button_2) is already enabled at board level for wake/sleep */
+&user_button_3 {
   status = "okay";
 };
 
