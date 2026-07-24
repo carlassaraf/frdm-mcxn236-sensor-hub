@@ -1,0 +1,16 @@
+{
+  "codename": "JetBrainsMedium14",
+  "ttf_path": "/assets/fonts/JetBrainsMono-Medium.ttf",
+  "bin_path": "/assets/fonts/ui_font_JetBrainsMedium14.bin",
+  "c_path": "/assets/fonts/ui_font_JetBrainsMedium14.c",
+  "cfg_path": "/assets/fonts/ui_font_JetBrainsMedium14.fcfg",
+  "size": 14,
+  "bpp": 4,
+  "letters": 0,
+  "ranges": [
+    "0x20-0x7f"
+  ],
+  "symbols": "",
+  "customparams": "--no-compress --no-prefilter",
+  "uploaded": false
+}
