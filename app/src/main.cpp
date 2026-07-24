@@ -28,7 +28,7 @@ int main(void) {
 
   ui_init();
 
-  lv_obj_t *screens[] = {ui_scrSplash, ui_scrOverview, ui_scrTilt, ui_scrEnvironment, ui_scrCan};
+  lv_obj_t *screens[] = {ui_scrSplash, ui_scrOverview, ui_scrTilt, ui_scrEnvironment, ui_scrCan, ui_scrPower};
   uint8_t i = 0;
 
   while (1) {

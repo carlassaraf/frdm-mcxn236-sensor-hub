@@ -23,6 +23,7 @@ extern "C" {
 #include "screens/ui_scrTilt.h"
 #include "screens/ui_scrEnvironment.h"
 #include "screens/ui_scrCan.h"
+#include "screens/ui_scrPower.h"
 
 ///////////////////// VARIABLES ////////////////////
 

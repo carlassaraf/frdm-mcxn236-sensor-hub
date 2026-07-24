@@ -34,6 +34,7 @@ ui_scrOverview_screen_init();
 ui_scrTilt_screen_init();
 ui_scrEnvironment_screen_init();
 ui_scrCan_screen_init();
+ui_scrPower_screen_init();
 ui____initial_actions0 = lv_obj_create(NULL);
 lv_disp_load_scr( ui_scrSplash);
 }
@@ -44,4 +45,5 @@ ui_scrOverview_screen_destroy();
 ui_scrTilt_screen_destroy();
 ui_scrEnvironment_screen_destroy();
 ui_scrCan_screen_destroy();
+ui_scrPower_screen_destroy();
 }
