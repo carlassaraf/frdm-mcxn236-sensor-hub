@@ -36,6 +36,11 @@ int main(void) {
     if(gpio_pin_get_dt(&btn) && !pressed) {
       i = (i + 1) % (sizeof(screens) / sizeof(screens[0]));
       _ui_screen_change(&(screens[i]), LV_SCR_LOAD_ANIM_NONE, 0, 0, NULL);
+      if(lv_screen_active() == ui_scrSplash) {
+        lv_label_set_text_fmt(ui_splashVersion, "FRDM-MCXN236 - v%s (%s)", APP_VERSION_STRING, STRINGIFY(APP_BUILD_VERSION));
+      } else if(lv_screen_active() == ui_scrOverview) {
+        lv_label_set_text_fmt(ui_overviewVersion, "FRDM-MCXN236 - v%s (%s)", APP_VERSION_STRING, STRINGIFY(APP_BUILD_VERSION));
+      }
       pressed = true;
     } else if(!gpio_pin_get_dt(&btn) && pressed) {
       pressed = false;
