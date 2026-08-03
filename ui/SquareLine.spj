@@ -3757,7 +3757,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       20,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -3940,7 +3940,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       84,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -4100,7 +4100,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       148,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -4260,7 +4260,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       212,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -4420,7 +4420,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       276,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -4543,7 +4543,6 @@
                 "saved_objtypeKey": "IMAGE"
               }
             ],
-            "locked": true,
             "properties": [
               {
                 "nid": 10,
@@ -4580,7 +4579,7 @@
                 "strtype": "OBJECT/Position",
                 "intarray": [
                   0,
-                  188
+                  180
                 ],
                 "InheritedType": 7
               },
@@ -4590,7 +4589,7 @@
                 "strtype": "OBJECT/Size",
                 "intarray": [
                   320,
-                  52
+                  60
                 ],
                 "InheritedType": 7
               },
@@ -8024,7 +8023,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       20,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -8184,7 +8183,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       84,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -8367,7 +8366,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       148,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -8527,7 +8526,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       212,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -8687,7 +8686,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       276,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -8847,7 +8846,7 @@
                 "strtype": "OBJECT/Position",
                 "intarray": [
                   0,
-                  188
+                  180
                 ],
                 "InheritedType": 7
               },
@@ -8857,7 +8856,7 @@
                 "strtype": "OBJECT/Size",
                 "intarray": [
                   320,
-                  52
+                  60
                 ],
                 "InheritedType": 7
               },
@@ -11355,7 +11354,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       20,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -11515,7 +11514,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       84,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -11675,7 +11674,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       148,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -11858,7 +11857,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       212,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -12018,7 +12017,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       276,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -12178,7 +12177,7 @@
                 "strtype": "OBJECT/Position",
                 "intarray": [
                   0,
-                  188
+                  180
                 ],
                 "InheritedType": 7
               },
@@ -12188,7 +12187,7 @@
                 "strtype": "OBJECT/Size",
                 "intarray": [
                   320,
-                  52
+                  60
                 ],
                 "InheritedType": 7
               },
@@ -14164,7 +14163,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       20,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -14324,7 +14323,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       84,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -14484,7 +14483,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       148,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -14644,7 +14643,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       212,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -14827,7 +14826,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       276,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -14987,7 +14986,7 @@
                 "strtype": "OBJECT/Position",
                 "intarray": [
                   0,
-                  188
+                  180
                 ],
                 "InheritedType": 7
               },
@@ -14997,7 +14996,7 @@
                 "strtype": "OBJECT/Size",
                 "intarray": [
                   320,
-                  52
+                  60
                 ],
                 "InheritedType": 7
               },
@@ -16127,7 +16126,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       20,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -16287,7 +16286,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       84,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -16447,7 +16446,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       148,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -16607,7 +16606,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       212,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -16767,7 +16766,7 @@
                     "strtype": "OBJECT/Position",
                     "intarray": [
                       276,
-                      18
+                      26
                     ],
                     "InheritedType": 7
                   },
@@ -16950,7 +16949,7 @@
                 "strtype": "OBJECT/Position",
                 "intarray": [
                   0,
-                  188
+                  180
                 ],
                 "InheritedType": 7
               },
@@ -16960,7 +16959,7 @@
                 "strtype": "OBJECT/Size",
                 "intarray": [
                   320,
-                  52
+                  60
                 ],
                 "InheritedType": 7
               },
@@ -17173,7 +17172,7 @@
   },
   "animations": [],
   "selected_theme": "Default",
-  "selected_screen": "GUID52278396-791450S7505205",
+  "selected_screen": "GUID19593651-11861S9225204",
   "info": {
     "name": "SquareLine.spj",
     "depth": 1,
@@ -17202,7 +17201,7 @@
     "separate_screen_save": false,
     "hierarchy_state_save": false,
     "reverse_event_order": false,
-    "backup_cnt": 31,
+    "backup_cnt": 32,
     "autosave_cnt": 0,
     "group_color_cnt": 0,
     "imagebytearrayprefix": "",
