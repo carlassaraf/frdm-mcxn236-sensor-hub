@@ -25,7 +25,7 @@ flowchart LR
     end
 
     subgraph Shared
-        STATE[(device_state<br/>mutex-protected)]
+        STATE[(device_status<br/>mutex-protected)]
         WAKE{{wake_sem}}
         REQSCR[[requested_screen<br/>atomic]]
     end
@@ -50,7 +50,7 @@ flowchart LR
 ```
 
 Nothing outside the `UI Manager` box ever holds an `lv_obj_t*`. Producers only ever
-call the manager's opaque setter API and touch `device_state`/`wake_sem` — they never
+call the manager's opaque setter API and touch `device_status`/`wake_sem` — they never
 `#include` a screen header.
 
 ## Components
@@ -65,7 +65,7 @@ Owns and is the **only** code that touches `lv_obj_t*`. Responsibilities:
   generated root-object pointer.
 - Owns screen switching: destroy the outgoing screen's objects, lazily init the
   incoming one, load it, then immediately "hydrate" it from the latest
-  `device_state` snapshot so it never paints blank.
+  `device_status` snapshot so it never paints blank.
 - Exposes an opaque API (setters + navigation request) — this is the *only* header
   any non-UI component includes.
 
@@ -82,7 +82,7 @@ new LVGL logic.
 ### 2. Per-screen adapters
 
 One small hand-written module per screen (`ui_adapter_<screen>`), each translating
-`device_state` fields into calls on *that screen's* widgets (`lv_label_set_text`,
+`device_status` fields into calls on *that screen's* widgets (`lv_label_set_text`,
 `lv_slider_set_value`, etc.). These are the only files besides `ui_manager` allowed to
 `#include` a generated `screens/ui_scr<Name>.h`.
 
@@ -97,24 +97,24 @@ An adapter's `apply(state)` function only ever runs while its screen is the acti
 
 Owns sampling of the accelerometer + the custom gas sensor (ROADMAP §3/§4). Computes
 *derived* UI-relevant state (status enum: OK/WARN/ERROR against thresholds; not raw
-ADC counts) once, and pushes it into `device_state` via the UI Manager's setters. Also
+ADC counts) once, and pushes it into `device_status` via the UI Manager's setters. Also
 the natural place to maintain the raw `sensor_snapshot` the CAN service reads from.
 
 ### 4. CAN Service
 
 Owns the FlexCAN TX/RX (ROADMAP §5): reads the sensor snapshot, packs/sends telemetry
 frames, and pushes CAN-relevant display fields (loopback status, frame id, tx interval,
-tx/rx counters) into `device_state`.
+tx/rx counters) into `device_status`.
 
 ### 5. Input Service
 
 Owns the physical button: GPIO interrupt → debounce → a navigation request. Never
-touches LVGL or `device_state`'s data fields directly — it only requests a screen via
+touches LVGL or `device_status`'s data fields directly — it only requests a screen via
 the UI Manager's navigation API. This is also the extension point for any future input
 source (e.g. a second button, or an accelerometer-tap wake gesture) — each is just
 another producer that calls the same navigation API.
 
-## The shared `device_state`
+## The shared `device_status`
 
 One flat struct, one mutex, everyone-reads-everyone-writes-their-own-fields:
 
@@ -143,7 +143,7 @@ truth; the "requested screen" is exactly the same kind of value, not a queued co
 
 ## Synchronization model
 
-- **One `k_mutex`** guards all of `device_state`. A real (priority-inheriting) mutex,
+- **One `k_mutex`** guards all of `device_status`. A real (priority-inheriting) mutex,
   not a spinlock, because producers (higher priority) and the UI Manager (lower
   priority, see below) contend on it — priority inheritance bounds how long a
   higher-priority producer can be blocked by the UI thread holding the lock. Hard
@@ -156,7 +156,7 @@ truth; the "requested screen" is exactly the same kind of value, not a queued co
   queue, condition variable, or `k_event` were considered and rejected: there's exactly
   one wake *reason* here ("something changed, go re-snapshot"), so their extra
   machinery has no payoff.
-- **The requested screen** is a standalone atomic scalar, not a `device_state` field —
+- **The requested screen** is a standalone atomic scalar, not a `device_status` field —
   it has no cross-field consistency dependency on anything else, so it doesn't need
   the mutex. This also keeps the button's path lock-free, never contending with
   producers.
@@ -173,7 +173,7 @@ truth; the "requested screen" is exactly the same kind of value, not a queued co
 2. On a change: destroy the outgoing screen (frees its LVGL objects, nulls its
    pointers), then load the incoming screen (lazily initializes it since its pointer
    is now `NULL`).
-3. Immediately after load, snapshot `device_state` under the mutex and run the new
+3. Immediately after load, snapshot `device_status` under the mutex and run the new
    screen's `apply()` once — this is the "hydration" step that avoids a blank first
    frame.
 4. On every subsequent wake (whether from a producer or the rate-cap timeout), only
@@ -186,7 +186,7 @@ screens are built up front and kept alive for the app's whole lifetime).
 
 ## Threading model
 
-| Thread | Relative priority | Talks to `device_state` as | Notes |
+| Thread | Relative priority | Talks to `device_status` as | Notes |
 |---|---|---|---|
 | Sensor service | highest | producer | Time-sensitive sampling shouldn't be delayed by cosmetic UI work. |
 | CAN service | high | producer | Telemetry cadence tolerates more jitter than sampling itself, but still above UI. |

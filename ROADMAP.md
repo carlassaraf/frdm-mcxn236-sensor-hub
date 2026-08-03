@@ -25,7 +25,7 @@ built on the NXP FRDM-MCXN236 (Zephyr RTOS).
 - A dedicated **UI Manager** owns a dedicated LVGL thread and is the *only* code that ever touches
   an `lv_obj_t*` — no built-in `lvgl_lock()`/`lvgl_unlock()` exists in mainline, so this ownership
   boundary is what replaces it. Sensor/CAN/input threads never touch LVGL directly; they push
-  UI-relevant derived state into a shared, mutex-protected `device_state` struct and wake the UI
+  UI-relevant derived state into a shared, mutex-protected `device_status` struct and wake the UI
   Manager via a coalescing semaphore. Screens are lazily created/destroyed on switch (only the
   active screen's LVGL objects exist at a time). Full design: **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 - App layer in C++; drivers and Zephyr subsystem glue stay in C
@@ -92,16 +92,16 @@ west build -b frdm_mcxn236 ../deps/zephyr/samples/modules/lvgl/demos -p -- \
 - [x] Design the dashboard in SquareLine Studio (project settings: LVGL v9.x, 240×320, RGB565)
 - [x] Export the UI-only project, copy generated `ui/` sources into `src/ui/`
 - [x] Call `ui_init()` right after LVGL's own `SYS_INIT`-driven init runs
-- [x] Design the threaded UI ownership model (dedicated LVGL thread, shared `device_state`,
+- [x] Design the threaded UI ownership model (dedicated LVGL thread, shared `device_status`,
       lazy screen load/destroy) — see **[ARCHITECTURE.md](ARCHITECTURE.md)**
-- [ ] Implement the **UI Manager**: dedicated LVGL thread owning all `lv_obj_t*` access, the
+- [x] Implement the **UI Manager**: dedicated LVGL thread owning all `lv_obj_t*` access, the
       screen table (`init`/`destroy`/`apply` per screen), and the lazy load/destroy + hydrate
       sequencing (reusing the generated lazy-init screen-change helper and the generated
       per-screen `destroy()`'s existing pointer-nulling — don't reimplement either)
-- [ ] Implement the shared `device_state` struct + its `k_mutex`, plus the coalescing binary
+- [x] Implement the shared `device_status` struct + its `k_mutex`, plus the coalescing binary
       semaphore that wakes the UI Manager thread on change (see ARCHITECTURE.md's
       synchronization model — no message queue, latest-value-wins everywhere)
-- [ ] Implement one adapter module per screen translating `device_state` → that screen's widgets;
+- [ ] Implement one adapter module per screen translating `device_status` → that screen's widgets;
       keep these in new hand-written files, never inside the generated `screens/*.c`
 
 ## 3. Custom sensor driver (from scratch)
@@ -123,18 +123,18 @@ model, screen lifecycle, thread priority rationale). Summary of the concrete bui
 
 - [ ] Define shared `struct sensor_snapshot` (accel xyz + custom sensor reading), protected by its
       own `k_mutex` — raw readings, consumed by the CAN service for telemetry packing
-- [ ] Define the shared `device_state` struct (UI-facing *derived* fields: status enums, tilt
+- [ ] Define the shared `device_status` struct (UI-facing *derived* fields: status enums, tilt
       xyz, env value/unit/status, CAN counters) per ARCHITECTURE.md, with its own `k_mutex` +
       coalescing binary semaphore — separate from `sensor_snapshot`, owned by the UI Manager
 - [ ] Sensor-sampling thread: periodic `k_thread` polling the FXLS8974 accelerometer + the custom
       sensor; writes `sensor_snapshot` under its mutex, computes derived status once, and pushes
-      it into `device_state` via the UI Manager's setters
+      it into `device_status` via the UI Manager's setters
 - [ ] CAN TX thread: reads `sensor_snapshot` under its mutex, packs into a CAN-FD frame, sends
-      periodically, and pushes CAN status/counters into `device_state`
+      periodically, and pushes CAN status/counters into `device_status`
 - [ ] Input service: button GPIO interrupt (not polling) → `k_work` debounce → requests a screen
       change through the UI Manager's navigation API (atomic "requested screen" + wake semaphore)
-      — never touches `lv_obj_t*` or `device_state` directly
-- [ ] UI Manager thread reads `device_state` under its mutex to refresh the active screen's widgets
+      — never touches `lv_obj_t*` or `device_status` directly
+- [ ] UI Manager thread reads `device_status` under its mutex to refresh the active screen's widgets
 - [ ] Keep every mutex-held critical section short — no I2C/CAN/display-driver calls while holding
       either lock
 
