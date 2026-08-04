@@ -1,15 +1,7 @@
 #ifndef UI_MANAGER_H
 #define UI_MANAGER_H
 
-typedef enum {
-  SCREEN_SPLASH = 0,
-  SCREEN_OVERVIEW,
-  SCREEN_TILT,
-  SCREEN_ENVIRONMENT,
-  SCREEN_CAN,
-  SCREEN_POWER,
-  SCREEN_COUNT
-} screen_id_t;
+#include "device_status.h"
 
 #ifdef __cplusplus
 extern "C" {

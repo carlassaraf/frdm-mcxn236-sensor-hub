@@ -1,6 +1,8 @@
 #include "ui_manager.h"
 #include "ui.h"
 
+#include "device_status.h"
+
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/display.h>
 #include <zephyr/input/input.h>
@@ -19,6 +21,7 @@ static void ui_manager_input_cb(struct input_event *evt, void *user_data);
 
 static void scrSplash_postinit(void);
 static void scrOverview_postinit(void);
+static void scrOverview_step(void);
 
 // Screen struct definition
 typedef struct {
@@ -35,7 +38,7 @@ typedef struct {
 // Screen registration
 static screen_t screens[] = {
   [SCREEN_SPLASH]       = UI_SCREEN("Splash", ui_scrSplash, scrSplash_postinit, NULL),
-  [SCREEN_OVERVIEW]     = UI_SCREEN("Overview", ui_scrOverview, scrOverview_postinit, NULL),
+  [SCREEN_OVERVIEW]     = UI_SCREEN("Overview", ui_scrOverview, scrOverview_postinit, scrOverview_step),
   [SCREEN_TILT]         = UI_SCREEN("Tilt", ui_scrTilt, NULL, NULL),
   [SCREEN_ENVIRONMENT]  = UI_SCREEN("Environment", ui_scrEnvironment, NULL, NULL),
   [SCREEN_CAN]          = UI_SCREEN("CAN", ui_scrCan, NULL, NULL),
@@ -128,6 +131,7 @@ static void lvgl_thread(void *arg1, void *arg2, void *arg3)
       }
       // Update screen tracking
       s_current_screen = s_pending_screen;
+      curr = screens[s_current_screen];
     }
     // Run any available step callback
     if(curr.step) {
@@ -188,4 +192,18 @@ static void scrSplash_postinit(void)
 static void scrOverview_postinit(void)
 {
   lv_label_set_text_fmt(ui_overviewVersion, "FRDM-MCXN236 - v%s (%s)", APP_VERSION_STRING, STRINGIFY(APP_BUILD_VERSION));
+}
+
+static void scrOverview_step(void)
+{
+  static uint32_t uptime_s = 0;
+  
+  struct device_status status;
+  device_status_get(&status);
+  
+  if(uptime_s != status.uptime_s) {
+    // Avoid updating label if uptime hasn't changed
+    uptime_s = status.uptime_s;
+    lv_label_set_text_fmt(ui_overviewUptime, "%02d:%02d:%02d", uptime_s / 3600, (uptime_s / 60) % 60, uptime_s % 60);
+  }
 }
