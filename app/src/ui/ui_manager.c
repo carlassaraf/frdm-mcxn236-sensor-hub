@@ -1,14 +1,12 @@
 #include "ui_manager.h"
 #include "ui.h"
-
-#include "device_status.h"
+#include "ui_adapters.h"
 
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/display.h>
 #include <zephyr/input/input.h>
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/app_version.h>
 
 LOG_MODULE_REGISTER(ui_manager, LOG_LEVEL_INF);
 
@@ -16,12 +14,6 @@ LOG_MODULE_REGISTER(ui_manager, LOG_LEVEL_INF);
 static void lvgl_thread(void *arg1, void *arg2, void *arg3);
 static void ui_go_to_screen(screen_id_t screen);
 static void ui_manager_input_cb(struct input_event *evt, void *user_data);
-
-// Screen specific prototypes
-
-static void scrSplash_postinit(void);
-static void scrOverview_postinit(void);
-static void scrOverview_step(void);
 
 // Screen struct definition
 typedef struct {
@@ -180,30 +172,5 @@ static void ui_manager_input_cb(struct input_event *evt, void *user_data)
     break;
   default:
     break;
-  }
-}
-
-
-static void scrSplash_postinit(void)
-{
-  lv_label_set_text_fmt(ui_splashVersion, "FRDM-MCXN236 - v%s (%s)", APP_VERSION_STRING, STRINGIFY(APP_BUILD_VERSION));
-}
-
-static void scrOverview_postinit(void)
-{
-  lv_label_set_text_fmt(ui_overviewVersion, "FRDM-MCXN236 - v%s (%s)", APP_VERSION_STRING, STRINGIFY(APP_BUILD_VERSION));
-}
-
-static void scrOverview_step(void)
-{
-  static uint32_t uptime_s = 0;
-  
-  struct device_status status;
-  device_status_get(&status);
-  
-  if(uptime_s != status.uptime_s) {
-    // Avoid updating label if uptime hasn't changed
-    uptime_s = status.uptime_s;
-    lv_label_set_text_fmt(ui_overviewUptime, "%02d:%02d:%02d", uptime_s / 3600, (uptime_s / 60) % 60, uptime_s % 60);
   }
 }

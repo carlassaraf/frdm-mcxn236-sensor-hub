@@ -1,0 +1,19 @@
+#ifndef UI_ADAPTERS_H
+#define UI_ADAPTERS_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Splash screen adapter (scr_splash.c)
+void scrSplash_postinit(void);
+
+// Overview screen adapter (scr_overview.c)
+void scrOverview_postinit(void);
+void scrOverview_step(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
