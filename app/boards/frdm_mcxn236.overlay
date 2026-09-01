@@ -1,3 +1,5 @@
+#include <zephyr/dt-bindings/display/panel.h>
+
 &gpio2 {
   status = "okay";
 };
@@ -51,10 +53,11 @@
       reg               = <0>;
       mipi-mode         = "MIPI_DBI_MODE_8080_BUS_8_BIT";
       mipi-max-frequency = <10000000>;
-      pixel-format      = <0>; /* 0 = RGB565 */
+      pixel-format      = <PANEL_PIXEL_FORMAT_RGB_565X>;
       width             = <240>;
       height            = <320>;
       rotation          = <90>;   /* 0 | 90 | 180 | 270 CW — adjust to match physical mount */
+      h-mirror;
     };
   };
 };
