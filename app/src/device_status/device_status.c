@@ -44,14 +44,19 @@ void device_status_set_tilt(float x, float y, float z, device_status_t status)
   notify_changed();
 }
 
-void device_status_set_environment(float value, const char *unit, const char *sensor_name,
-                                    uint8_t channel, float voltage, device_status_t status)
+void device_status_set_environment_identity(const char *sensor_name, uint8_t channel)
+{
+  k_mutex_lock(&s_mutex, K_FOREVER);
+  s_status.env_sensor_name = sensor_name;
+  s_status.env_channel = channel;
+  k_mutex_unlock(&s_mutex);
+  notify_changed();
+}
+
+void device_status_set_environment(float value, float voltage, device_status_t status)
 {
   k_mutex_lock(&s_mutex, K_FOREVER);
   s_status.env_value = value;
-  s_status.env_unit = unit;
-  s_status.env_sensor_name = sensor_name;
-  s_status.env_channel = channel;
   s_status.env_voltage = voltage;
   s_status.env_status = status;
   k_mutex_unlock(&s_mutex);

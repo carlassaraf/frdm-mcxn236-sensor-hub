@@ -37,7 +37,6 @@ struct device_status {
   device_status_t tilt_status;
 
   float env_value;
-  const char *env_unit;
   const char *env_sensor_name;
   uint8_t env_channel;
   float env_voltage;
@@ -59,8 +58,8 @@ void device_status_init(void);
 void device_status_set_uptime(uint32_t uptime_s);
 void device_status_set_overall_status(device_status_t status);
 void device_status_set_tilt(float x, float y, float z, device_status_t status);
-void device_status_set_environment(float value, const char *unit, const char *sensor_name,
-                                    uint8_t channel, float voltage, device_status_t status);
+void device_status_set_environment_identity(const char *sensor_name, uint8_t channel);
+void device_status_set_environment(float value, float voltage, device_status_t status);
 void device_status_set_can(bool loopback_ok, uint32_t frame_id, uint32_t tx_interval_ms,
                             uint32_t tx_count, device_status_t status);
 void device_status_set_active_screen(screen_id_t screen);
