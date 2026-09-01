@@ -5,3 +5,7 @@ target_link_libraries(device_status PRIVATE zephyr_interface)
 if(CONFIG_TILT_SIM)
   target_sources(device_status PRIVATE tilt_sim.c)
 endif()
+
+if(CONFIG_ENV_SIM)
+  target_sources(device_status PRIVATE env_sim.c)
+endif()

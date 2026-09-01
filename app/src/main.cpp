@@ -8,6 +8,9 @@
 #if defined(CONFIG_TILT_SIM)
 #include "tilt_sim.h"
 #endif
+#if defined(CONFIG_ENV_SIM)
+#include "env_sim.h"
+#endif
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
@@ -32,6 +35,9 @@ int main(void)
 
 #if defined(CONFIG_TILT_SIM)
   tilt_sim_start();
+#endif
+#if defined(CONFIG_ENV_SIM)
+  env_sim_start();
 #endif
 
   return 0;
