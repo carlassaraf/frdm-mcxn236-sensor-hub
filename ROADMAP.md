@@ -102,7 +102,38 @@ west build -b frdm_mcxn236 ../deps/zephyr/samples/modules/lvgl/demos -p -- \
       semaphore that wakes the UI Manager thread on change (see ARCHITECTURE.md's
       synchronization model — no message queue, latest-value-wins everywhere)
 - [ ] Implement one adapter module per screen translating `device_status` → that screen's widgets;
-      keep these in new hand-written files, never inside the generated `screens/*.c`
+      keep these in new hand-written files (`ui_adapter_<screen>.c`), never inside the generated
+      `screens/*.c`
+  - [x] `ui_adapter_splash`: relocate the existing version-string `postinit` out of `ui_manager.c`
+        (no `device_status` needed)
+  - [x] `ui_adapter_overview`: relocate the existing uptime `step`; wire `overall_status` → the
+        hero text/color, and `env_status`/`can_status`/                         `tilt_status` → the three status rows
+        (text + okg/wrn/err color via `ui_object_set_themeable_style_property`, same helper the
+        generated init already uses)
+  - [x] `ui_adapter_tilt`: wire `tilt_x/y/z` → the 3 axis labels + range-sliders
+  - [ ] `ui_adapter_environment`: wire `env_value/unit/sensor_name/channel/voltage/status` → the
+        6 hero/detail widgets
+  - [ ] `ui_adapter_can`: wire `can_loopback_ok/frame_id/tx_interval_ms/tx_count` → the 4 widgets
+        (settle the rx-count gap below first)
+  - [ ] `ui_adapter_power`: wire the sleep/wake flag → the hero + instructions text (needs a new
+        `ui_manager_display_sleeping()` read accessor — sleep state is UI-Manager-local, not a
+        `device_status` field, so it shouldn't go through the mutex)
+  - [ ] Stop `ui_manager.c` itself from reaching into screen headers directly — today
+        `scrSplash_postinit`/`scrOverview_postinit`/`scrOverview_step` are defined inline in
+        `ui_manager.c` and `#include "ui.h"` directly; that logic belongs in the adapters above,
+        per ARCHITECTURE.md's "adapters are the only other code allowed to reach into generated
+        screen headers" rule
+  - [ ] Wire the LVGL thread loop to actually call `device_status_wait()` with a clamped
+        floor/ceiling timeout instead of the current unconditional `k_msleep(10)` — the
+        coalescing-semaphore design ARCHITECTURE.md describes is defined in `device_status.c`
+        but never called anywhere in `ui_manager.c` yet
+
+> **Reviewed 2026-08-04:** screen-by-screen adapter scope above; two open questions to settle
+> before wiring rather than guessing:
+> 1. `device_status` has no `can_rx_count` field/setter, but the Can screen's static label reads
+>    "TX / RX count" and its placeholder shows a TX/RX pair ("348 / 348"). Either add
+>    `can_rx_count` (matches the existing "one setter per producer" pattern — loopback TX==RX
+>    verification is already a checklist item below) or simplify the widget to TX-only.
 
 ## 3. Custom sensor driver (from scratch)
 

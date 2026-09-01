@@ -218,11 +218,27 @@ shrink back down once it does.
   chosen for the UI thread's wait timeout should be validated against a real measured
   flush duration before being trusted as an actual cap (if the flush alone exceeds the
   floor, the floor is meaningless and the flush itself is the limiting factor).
-- The Overview/Tilt/Environment/Can/Power screens' nav-legend text currently
-  references a different physical button than the one actually wired (a pre-existing
-  mismatch in the SquareLine project, not introduced by this architecture) — worth
-  fixing at the SquareLine-project level separately.
 - Power management (ROADMAP §8) will add a sleep/wake path; this architecture's
   navigation model (a single atomic "requested screen" plus a wake semaphore) should
   extend naturally to "wake on button/motion → force Overview" without new primitives,
   but hasn't been designed in detail yet.
+- **Reviewed 2026-08-04, per-screen adapter pass (ROADMAP §2):** `ui_manager.c` doesn't
+  actually call `device_status_wait()` yet — the LVGL thread free-runs on an
+  unconditional `k_msleep(10)` instead of blocking on the coalescing semaphore with a
+  clamped floor/ceiling. Also, `scrSplash_postinit`/`scrOverview_postinit`/
+  `scrOverview_step` are currently defined inline in `ui_manager.c` (which
+  `#include`s `ui.h` directly) rather than in per-screen adapter files — both should be
+  fixed as part of implementing the remaining adapters, not deferred further.
+- The Power screen needs the sleep/wake flag (`s_display_sleeping` in `ui_manager.c`) to
+  drive its hero/instructions text, but that flag is UI-Manager-local state, not a
+  `device_status` field — it needs a small read accessor (e.g.
+  `ui_manager_display_sleeping()`) rather than being routed through the mutex.
+- Tilt's `ui_axisXbar/Ybar/Zbar` are `lv_slider`s in `LV_SLIDER_MODE_RANGE` (a start
+  *and* end value), not a plain single-value slider — undecided whether that's
+  intentional (e.g. start pinned at 0, end at the reading, to visualize
+  deviation-from-center) or should collapse to a single value before the Tilt adapter
+  is written.
+- `device_status`'s CAN fields have no `can_rx_count` — only `can_tx_count` — but the
+  Can screen's static label reads "TX / RX count" and its placeholder shows a TX/RX
+  pair. Needs either a new `can_rx_count` field/setter (matches the existing
+  one-setter-per-producer pattern) or simplifying the widget to TX-only.
