@@ -5,6 +5,9 @@
 
 #include "device_status.h"
 #include "ui_manager.h"
+#if defined(CONFIG_TILT_SIM)
+#include "tilt_sim.h"
+#endif
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
@@ -23,9 +26,14 @@ int main(void)
 
   device_status_init();
   ui_manager_init();
-  
+
   k_work_init_delayable(&uptime_work, device_status_uptime_update);
   k_work_reschedule(&uptime_work, K_SECONDS(1));
+
+#if defined(CONFIG_TILT_SIM)
+  tilt_sim_start();
+#endif
+
   return 0;
 }
 

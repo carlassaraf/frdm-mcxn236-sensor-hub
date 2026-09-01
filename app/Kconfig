@@ -1,2 +1,3 @@
 rsource "src/ui/Kconfig.ui"
+rsource "src/device_status/Kconfig.device_status"
 source "Kconfig.zephyr"
