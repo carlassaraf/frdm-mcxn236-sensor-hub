@@ -9359,7 +9359,7 @@
               {
                 "nid": 1030,
                 "strtype": "LABEL/Text",
-                "strval": "118",
+                "strval": "888",
                 "InheritedType": 10
               },
               {
@@ -9445,7 +9445,7 @@
                 "flags": 17,
                 "strtype": "OBJECT/Position",
                 "intarray": [
-                  60,
+                  75,
                   43
                 ],
                 "InheritedType": 7
@@ -17172,7 +17172,7 @@
   },
   "animations": [],
   "selected_theme": "Default",
-  "selected_screen": "GUID19593651-11861S9225204",
+  "selected_screen": "GUID84955352-157809S3525204",
   "info": {
     "name": "SquareLine.spj",
     "depth": 1,
@@ -17201,7 +17201,7 @@
     "separate_screen_save": false,
     "hierarchy_state_save": false,
     "reverse_event_order": false,
-    "backup_cnt": 32,
+    "backup_cnt": 33,
     "autosave_cnt": 0,
     "group_color_cnt": 0,
     "imagebytearrayprefix": "",

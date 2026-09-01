@@ -6,3 +6,13 @@ config TILT_SIM
     bursts) into device_status_set_tilt(), standing in for a real
     accelerometer driver so the Tilt screen can be exercised without
     hardware. Disable once a real tilt sensor driver is wired in.
+
+config ENV_SIM
+  bool "Simulate environment sensor readings"
+  default y
+  help
+    Feeds a synthetic ppm reading (slow drift plus noise) and its
+    matching simulated ADC voltage into device_status_set_environment(),
+    standing in for a real environment sensor driver so the Environment
+    screen can be exercised without hardware. Disable once a real
+    environment sensor driver is wired in.
