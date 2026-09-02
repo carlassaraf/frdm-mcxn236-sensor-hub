@@ -1,4 +1,5 @@
 add_library(ui_adapters
+  scr_can.c
   scr_environment.c
   scr_overview.c
   scr_splash.c

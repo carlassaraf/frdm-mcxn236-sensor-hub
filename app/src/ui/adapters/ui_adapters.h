@@ -15,6 +15,9 @@ void scrOverview_step(void);
 // Tilt screen adapter (scr_tilt.c)
 void scrTilt_step(void);
 
+// Can screen adapter (scr_can.c)
+void scrCan_step(void);
+
 // Environment screen adapter (scr_environment.c)
 void scrEnvironment_postInit(void);
 void scrEnvironment_step(void);

@@ -33,7 +33,7 @@ static screen_t screens[] = {
   [SCREEN_OVERVIEW]     = UI_SCREEN("Overview", ui_scrOverview, scrOverview_postinit, scrOverview_step),
   [SCREEN_TILT]         = UI_SCREEN("Tilt", ui_scrTilt, NULL, scrTilt_step),
   [SCREEN_ENVIRONMENT]  = UI_SCREEN("Environment", ui_scrEnvironment, scrEnvironment_postInit, scrEnvironment_step),
-  [SCREEN_CAN]          = UI_SCREEN("CAN", ui_scrCan, NULL, NULL),
+  [SCREEN_CAN]          = UI_SCREEN("CAN", ui_scrCan, NULL, scrCan_step),
   [SCREEN_POWER]        = UI_SCREEN("Power", ui_scrPower, NULL, NULL),
   [SCREEN_COUNT]        = {NULL, NULL, NULL, NULL, NULL, NULL}
 };

@@ -111,9 +111,9 @@ west build -b frdm_mcxn236 ../deps/zephyr/samples/modules/lvgl/demos -p -- \
         (text + okg/wrn/err color via `ui_object_set_themeable_style_property`, same helper the
         generated init already uses)
   - [x] `ui_adapter_tilt`: wire `tilt_x/y/z` → the 3 axis labels + range-sliders
-  - [ ] `ui_adapter_environment`: wire `env_value/unit/sensor_name/channel/voltage/status` → the
+  - [x] `ui_adapter_environment`: wire `env_value/unit/sensor_name/channel/voltage/status` → the
         6 hero/detail widgets
-  - [ ] `ui_adapter_can`: wire `can_loopback_ok/frame_id/tx_interval_ms/tx_count` → the 4 widgets
+  - [x] `ui_adapter_can`: wire `can_loopback_ok/frame_id/tx_interval_ms/tx_count` → the 4 widgets
         (settle the rx-count gap below first)
   - [ ] `ui_adapter_power`: wire the sleep/wake flag → the hero + instructions text (needs a new
         `ui_manager_display_sleeping()` read accessor — sleep state is UI-Manager-local, not a
