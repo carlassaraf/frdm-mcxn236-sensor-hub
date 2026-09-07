@@ -50,7 +50,6 @@ static screen_id_t s_pending_screen = SCREEN_SPLASH;
 // Display sleep tracking (SW2)
 static const struct device *s_display;
 static lv_obj_t *s_sleep_overlay;
-static bool s_display_sleeping = false;
 
 // Register callback for input switches
 INPUT_CALLBACK_DEFINE(DEVICE_DT_GET(DT_PATH(gpio_keys)), ui_manager_input_cb, NULL);
@@ -95,14 +94,17 @@ static void lvgl_thread(void *arg1, void *arg2, void *arg3)
   while (1) {
     // Get current screen
     screen_t curr = screens[s_current_screen];
+    // Get the current sleep state
+    struct device_status dev;
+    device_status_get(&dev);
     // Sync the sleep overlay with the latest SW2 request
-    if (s_display_sleeping != overlay_visible) {
-      if (s_display_sleeping) {
+    if (dev.display_sleeping != overlay_visible) {
+      if (dev.display_sleeping) {
         lv_obj_clear_flag(s_sleep_overlay, LV_OBJ_FLAG_HIDDEN);
       } else {
         lv_obj_add_flag(s_sleep_overlay, LV_OBJ_FLAG_HIDDEN);
       }
-      overlay_visible = s_display_sleeping;
+      overlay_visible = dev.display_sleeping;
     }
 
     // Check if there is a pending screen to change to
@@ -167,8 +169,11 @@ static void ui_manager_input_cb(struct input_event *evt, void *user_data)
     break;
   }
   case INPUT_KEY_WAKEUP:
-    s_display_sleeping = !s_display_sleeping;
-    LOG_INF("Display %s", s_display_sleeping ? "sleeping" : "awake");
+    struct device_status dev;
+    device_status_get(&dev);
+    bool sleeping = !dev.display_sleeping;
+    device_status_set_display_sleeping(sleeping);
+    LOG_INF("Display %s", sleeping ? "sleeping" : "awake");
     break;
   default:
     break;

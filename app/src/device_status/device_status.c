@@ -84,6 +84,14 @@ void device_status_set_active_screen(screen_id_t screen)
   // Diagnostic-only field: no producer waits on it, no need to wake anyone.
 }
 
+void device_status_set_display_sleeping(bool is_sleeping)
+{
+  k_mutex_lock(&s_mutex, K_FOREVER);
+  s_status.display_sleeping = is_sleeping;
+  k_mutex_unlock(&s_mutex);
+  notify_changed(DEVICE_STATUS_EVT_DISPLAY);
+}
+
 void device_status_get(struct device_status *out)
 {
   k_mutex_lock(&s_mutex, K_FOREVER);

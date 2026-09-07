@@ -14,7 +14,8 @@ extern "C" {
 #define DEVICE_STATUS_EVT_TILT          BIT(2)
 #define DEVICE_STATUS_EVT_ENVIRONMENT   BIT(3)
 #define DEVICE_STATUS_EVT_CAN           BIT(4)
-#define DEVICE_STATUS_EVT_ALL           (DEVICE_STATUS_EVT_UPTIME | DEVICE_STATUS_EVT_OVERALL | DEVICE_STATUS_EVT_TILT | DEVICE_STATUS_EVT_ENVIRONMENT | DEVICE_STATUS_EVT_CAN)
+#define DEVICE_STATUS_EVT_DISPLAY       BIT(5)
+#define DEVICE_STATUS_EVT_ALL           (DEVICE_STATUS_EVT_UPTIME | DEVICE_STATUS_EVT_OVERALL | DEVICE_STATUS_EVT_TILT | DEVICE_STATUS_EVT_ENVIRONMENT | DEVICE_STATUS_EVT_CAN | DEVICE_STATUS_EVT_DISPLAY)
 
 typedef enum {
   DEVICE_STATUS_UNKNOWN = 0,
@@ -57,6 +58,7 @@ struct device_status {
 
   // Written by the UI Manager only; diagnostic, not read by any producer.
   screen_id_t active_screen;
+  bool display_sleeping;
 };
 
 void device_status_init(void);
@@ -70,6 +72,7 @@ void device_status_set_environment(float value, float voltage, device_status_t s
 void device_status_set_can(bool loopback_ok, uint32_t frame_id, uint32_t tx_interval_ms,
                             uint32_t tx_count, device_status_t status);
 void device_status_set_active_screen(screen_id_t screen);
+void device_status_set_display_sleeping(bool is_sleeping);
 
 /**
  * @brief Copies the whole struct under the mutex

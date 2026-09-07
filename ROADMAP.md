@@ -115,9 +115,15 @@ west build -b frdm_mcxn236 ../deps/zephyr/samples/modules/lvgl/demos -p -- \
         6 hero/detail widgets
   - [x] `ui_adapter_can`: wire `can_loopback_ok/frame_id/tx_interval_ms/tx_count` → the 4 widgets
         (settle the rx-count gap below first)
-  - [ ] `ui_adapter_power`: wire the sleep/wake flag → the hero + instructions text (needs a new
-        `ui_manager_display_sleeping()` read accessor — sleep state is UI-Manager-local, not a
-        `device_status` field, so it shouldn't go through the mutex)
+  - [x] `ui_adapter_power`: deliberately no adapter/`step`. `display_sleeping` moved from a
+        UI-Manager-local static into a `device_status` field (SW2's handler is still its sole
+        writer), but the sleep overlay lives on `lv_layer_top()`, above every screen, and both
+        its visibility and any screen redraw happen in the same
+        `lvgl_thread()` iteration before the single `lv_timer_handler()` flush — so the hero/
+        instructions text is only ever visible while awake, and SquareLine's static text
+        ("AWAKE" / "Push SW2 to sleep") is already correct in that state by construction. A
+        `step` that set "SLEEPING" would be covered by the overlay in the same tick it ran,
+        i.e. dead code.
   - [ ] Stop `ui_manager.c` itself from reaching into screen headers directly — today
         `scrSplash_postinit`/`scrOverview_postinit`/`scrOverview_step` are defined inline in
         `ui_manager.c` and `#include "ui.h"` directly; that logic belongs in the adapters above,
