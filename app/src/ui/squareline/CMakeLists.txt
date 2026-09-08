@@ -22,3 +22,5 @@ SET(SOURCES screens/ui_scrSplash.c
     fonts/ui_font_JetBrainsMedium14.c)
 
 add_library(ui ${SOURCES})
+target_include_directories(ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(ui PUBLIC LVGL)

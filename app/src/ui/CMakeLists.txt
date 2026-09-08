@@ -1,6 +1,5 @@
 add_subdirectory(squareline)
+add_subdirectory(adapters)
 add_library(ui_manager ui_manager.c)
 target_include_directories(ui_manager PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(ui_manager PRIVATE squareline)
-target_link_libraries(ui PUBLIC LVGL)
-target_link_libraries(ui_manager PRIVATE ui)
+target_link_libraries(ui_manager PRIVATE ui ui_adapters zephyr_interface kernel)

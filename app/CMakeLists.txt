@@ -4,5 +4,6 @@ project(sensor-hub)
 
 target_sources(app PRIVATE src/main.cpp)
 
+add_subdirectory(src/device_status)
 add_subdirectory(src/ui)
-target_link_libraries(app PRIVATE ui_manager)
+target_link_libraries(app PRIVATE ui_manager device_status)
