@@ -124,7 +124,7 @@ west build -b frdm_mcxn236 ../deps/zephyr/samples/modules/lvgl/demos -p -- \
         ("AWAKE" / "Push SW2 to sleep") is already correct in that state by construction. A
         `step` that set "SLEEPING" would be covered by the overlay in the same tick it ran,
         i.e. dead code.
-  - [ ] Stop `ui_manager.c` itself from reaching into screen headers directly — today
+  - [x] Stop `ui_manager.c` itself from reaching into screen headers directly — today
         `scrSplash_postinit`/`scrOverview_postinit`/`scrOverview_step` are defined inline in
         `ui_manager.c` and `#include "ui.h"` directly; that logic belongs in the adapters above,
         per ARCHITECTURE.md's "adapters are the only other code allowed to reach into generated

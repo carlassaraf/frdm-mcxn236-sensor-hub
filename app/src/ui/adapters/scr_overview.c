@@ -5,12 +5,12 @@
 
 static void scrOverview_status_helper(device_status_t status, lv_obj_t *lbl, const char *ok_text, const char *wrn_text, const char *err_text, const char *unkn_text);
 
-void scrOverview_postinit(void)
+static void scrOverview_postinit(void)
 {
   lv_label_set_text_fmt(ui_overviewVersion, "FRDM-MCXN236 - v%s (%s)", APP_VERSION_STRING, STRINGIFY(APP_BUILD_VERSION));
 }
 
-void scrOverview_step(void)
+static void scrOverview_step(void)
 {
   static uint32_t uptime_s = 0;
   static device_status_t env_status;
@@ -62,3 +62,15 @@ static void scrOverview_status_helper(device_status_t status, lv_obj_t *lbl, con
     ui_object_set_themeable_style_property(lbl, LV_PART_MAIN | LV_STATE_DEFAULT, LV_STYLE_TEXT_COLOR, _ui_theme_color_tx2);
   }
 }
+
+static void scrOverview_load(void)
+{
+  _ui_screen_change(&ui_scrOverview, LV_SCR_LOAD_ANIM_NONE, 0, 0, ui_scrOverview_screen_init);
+}
+
+static void scrOverview_unload(void)
+{
+  _ui_screen_delete(ui_scrOverview_screen_destroy);
+}
+
+const screen_ops_t scrOverview_ops = { "Overview", scrOverview_load, scrOverview_unload, scrOverview_postinit, scrOverview_step };

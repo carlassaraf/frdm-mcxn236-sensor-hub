@@ -4,7 +4,7 @@
 
 static void scrCan_hero_helper(bool loopback_ok, device_status_t status);
 
-void scrCan_step(void)
+static void scrCan_step(void)
 {
   static uint32_t frame_id = 0;
   static uint32_t tx_interval_ms = 0;
@@ -58,3 +58,15 @@ static void scrCan_hero_helper(bool loopback_ok, device_status_t status)
     ui_object_set_themeable_style_property(ui_canHero, LV_PART_MAIN | LV_STATE_DEFAULT, LV_STYLE_TEXT_COLOR, _ui_theme_color_tx2);
   }
 }
+
+static void scrCan_load(void)
+{
+  _ui_screen_change(&ui_scrCan, LV_SCR_LOAD_ANIM_NONE, 0, 0, ui_scrCan_screen_init);
+}
+
+static void scrCan_unload(void)
+{
+  _ui_screen_delete(ui_scrCan_screen_destroy);
+}
+
+const screen_ops_t scrCan_ops = { "CAN", scrCan_load, scrCan_unload, NULL, scrCan_step };

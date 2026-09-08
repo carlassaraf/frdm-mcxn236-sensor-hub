@@ -1,7 +1,7 @@
 #include "ui_manager.h"
-#include "ui.h"
 #include "ui_adapters.h"
 
+#include <lvgl.h>
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/display.h>
 #include <zephyr/input/input.h>
@@ -15,27 +15,22 @@ static void lvgl_thread(void *arg1, void *arg2, void *arg3);
 static void ui_go_to_screen(screen_id_t screen);
 static void ui_manager_input_cb(struct input_event *evt, void *user_data);
 
-// Screen struct definition
-typedef struct {
-  const char *name;
-  lv_obj_t **scr;
-  void (*init)(void);
-  void (*destroy)(void);
-  void (*postinit)(void);
-  void (*step)(void);
-} screen_t;
+// Stand-in for screens[SCREEN_COUNT]: read once on the very first loop iteration,
+// before any real screen has loaded, so `curr` is always a valid pointer to
+// dereference rather than NULL.
+static const screen_ops_t s_no_screen = {0};
 
-#define UI_SCREEN(name, scrObj, post, step) {name, &scrObj, scrObj##_screen_init, scrObj##_screen_destroy, post, step}
-
-// Screen registration
-static screen_t screens[] = {
-  [SCREEN_SPLASH]       = UI_SCREEN("Splash", ui_scrSplash, scrSplash_postinit, NULL),
-  [SCREEN_OVERVIEW]     = UI_SCREEN("Overview", ui_scrOverview, scrOverview_postinit, scrOverview_step),
-  [SCREEN_TILT]         = UI_SCREEN("Tilt", ui_scrTilt, NULL, scrTilt_step),
-  [SCREEN_ENVIRONMENT]  = UI_SCREEN("Environment", ui_scrEnvironment, scrEnvironment_postInit, scrEnvironment_step),
-  [SCREEN_CAN]          = UI_SCREEN("CAN", ui_scrCan, NULL, scrCan_step),
-  [SCREEN_POWER]        = UI_SCREEN("Power", ui_scrPower, NULL, NULL),
-  [SCREEN_COUNT]        = {NULL, NULL, NULL, NULL, NULL, NULL}
+// Screen registration -- one entry per screen_id_t, each backed by that screen's
+// adapter-owned const screen_ops_t (see ui_adapters.h). No generated SquareLine
+// header is included here; only opaque function pointers cross this boundary.
+static const screen_ops_t *screens[] = {
+  [SCREEN_SPLASH]       = &scrSplash_ops,
+  [SCREEN_OVERVIEW]     = &scrOverview_ops,
+  [SCREEN_TILT]         = &scrTilt_ops,
+  [SCREEN_ENVIRONMENT]  = &scrEnvironment_ops,
+  [SCREEN_CAN]          = &scrCan_ops,
+  [SCREEN_POWER]        = &scrPower_ops,
+  [SCREEN_COUNT]        = &s_no_screen,
 };
 
 // Thread specific variables
@@ -93,7 +88,7 @@ static void lvgl_thread(void *arg1, void *arg2, void *arg3)
 
   while (1) {
     // Get current screen
-    screen_t curr = screens[s_current_screen];
+    const screen_ops_t *curr = screens[s_current_screen];
     // Get the current sleep state
     struct device_status dev;
     device_status_get(&dev);
@@ -109,27 +104,27 @@ static void lvgl_thread(void *arg1, void *arg2, void *arg3)
 
     // Check if there is a pending screen to change to
     if (s_current_screen != s_pending_screen) {
-      screen_t next = screens[s_pending_screen];
-      LOG_INF("Changing screen to %s", next.name);
+      const screen_ops_t *next = screens[s_pending_screen];
+      LOG_INF("Changing screen to %s", next->name);
       // Change to pending screen and create widgets on spot
-      if (next.init) {
-        _ui_screen_change(next.scr, LV_SCR_LOAD_ANIM_NONE, 0, 0, next.init);
+      if (next->load) {
+        next->load();
         // After screen creation and transition, run any available port creation
-        if (next.postinit) {
-          LOG_INF("Calling post-init function for %s", next.name);
-          next.postinit();
+        if (next->postinit) {
+          LOG_INF("Calling post-init function for %s", next->name);
+          next->postinit();
         }
-      } if (curr.destroy) {
+      } if (curr->unload) {
         // Destroy previous screen to free memory
-        _ui_screen_delete(curr.destroy);
+        curr->unload();
       }
       // Update screen tracking
       s_current_screen = s_pending_screen;
       curr = screens[s_current_screen];
     }
     // Run any available step callback
-    if(curr.step) {
-      curr.step();
+    if(curr->step) {
+      curr->step();
     }
 
     lv_timer_handler();

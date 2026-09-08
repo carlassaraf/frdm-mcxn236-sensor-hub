@@ -58,7 +58,7 @@ static void tilt_axis_update(tilt_axis_state_t *st, float raw, int32_t elapsed_m
                          (int32_t)mag, (int32_t)(mag * 100.0f) % 100);
 }
 
-void scrTilt_step(void)
+static void scrTilt_step(void)
 {
   static int64_t last_update_ms = 0;
   static tilt_axis_state_t x_state, y_state, z_state;
@@ -76,3 +76,15 @@ void scrTilt_step(void)
   tilt_axis_update(&y_state, status.tilt_y, elapsed_ms, ui_axisYbar, ui_axisYv);
   tilt_axis_update(&z_state, status.tilt_z, elapsed_ms, ui_axisZbar, ui_axisZv);
 }
+
+static void scrTilt_load(void)
+{
+  _ui_screen_change(&ui_scrTilt, LV_SCR_LOAD_ANIM_NONE, 0, 0, ui_scrTilt_screen_init);
+}
+
+static void scrTilt_unload(void)
+{
+  _ui_screen_delete(ui_scrTilt_screen_destroy);
+}
+
+const screen_ops_t scrTilt_ops = { "Tilt", scrTilt_load, scrTilt_unload, NULL, scrTilt_step };
