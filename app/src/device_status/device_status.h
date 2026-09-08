@@ -9,6 +9,14 @@
 extern "C" {
 #endif
 
+#define DEVICE_STATUS_EVT_UPTIME        BIT(0)
+#define DEVICE_STATUS_EVT_OVERALL       BIT(1)
+#define DEVICE_STATUS_EVT_TILT          BIT(2)
+#define DEVICE_STATUS_EVT_ENVIRONMENT   BIT(3)
+#define DEVICE_STATUS_EVT_CAN           BIT(4)
+#define DEVICE_STATUS_EVT_DISPLAY       BIT(5)
+#define DEVICE_STATUS_EVT_ALL           (DEVICE_STATUS_EVT_UPTIME | DEVICE_STATUS_EVT_OVERALL | DEVICE_STATUS_EVT_TILT | DEVICE_STATUS_EVT_ENVIRONMENT | DEVICE_STATUS_EVT_CAN | DEVICE_STATUS_EVT_DISPLAY)
+
 typedef enum {
   DEVICE_STATUS_UNKNOWN = 0,
   DEVICE_STATUS_OK,
@@ -50,6 +58,7 @@ struct device_status {
 
   // Written by the UI Manager only; diagnostic, not read by any producer.
   screen_id_t active_screen;
+  bool display_sleeping;
 };
 
 void device_status_init(void);
@@ -63,14 +72,20 @@ void device_status_set_environment(float value, float voltage, device_status_t s
 void device_status_set_can(bool loopback_ok, uint32_t frame_id, uint32_t tx_interval_ms,
                             uint32_t tx_count, device_status_t status);
 void device_status_set_active_screen(screen_id_t screen);
+void device_status_set_display_sleeping(bool is_sleeping);
 
-// Copies the whole struct out under the mutex. Never hand out a pointer to the
-// live state — callers (esp. the UI Manager) must own their snapshot.
+/**
+ * @brief Copies the whole struct under the mutex
+ * @param out Pointer to copy the values
+ */
 void device_status_get(struct device_status *out);
 
-// Blocks until a setter has fired since the last wake, or timeout elapses.
-// Wraps the coalescing binary semaphore so callers never touch k_sem directly.
-int device_status_wait(k_timeout_t timeout);
+/** 
+ * @brief Blocks until the event bit has been set
+ * @param events_mask One of the available DEVICE_STATUS_EVT masks
+ * @param timeout Time to wait for event
+ */
+int device_status_wait(uint32_t events_mask, k_timeout_t timeout);
 
 #ifdef __cplusplus
 }

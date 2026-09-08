@@ -111,19 +111,25 @@ west build -b frdm_mcxn236 ../deps/zephyr/samples/modules/lvgl/demos -p -- \
         (text + okg/wrn/err color via `ui_object_set_themeable_style_property`, same helper the
         generated init already uses)
   - [x] `ui_adapter_tilt`: wire `tilt_x/y/z` → the 3 axis labels + range-sliders
-  - [ ] `ui_adapter_environment`: wire `env_value/unit/sensor_name/channel/voltage/status` → the
+  - [x] `ui_adapter_environment`: wire `env_value/unit/sensor_name/channel/voltage/status` → the
         6 hero/detail widgets
-  - [ ] `ui_adapter_can`: wire `can_loopback_ok/frame_id/tx_interval_ms/tx_count` → the 4 widgets
+  - [x] `ui_adapter_can`: wire `can_loopback_ok/frame_id/tx_interval_ms/tx_count` → the 4 widgets
         (settle the rx-count gap below first)
-  - [ ] `ui_adapter_power`: wire the sleep/wake flag → the hero + instructions text (needs a new
-        `ui_manager_display_sleeping()` read accessor — sleep state is UI-Manager-local, not a
-        `device_status` field, so it shouldn't go through the mutex)
-  - [ ] Stop `ui_manager.c` itself from reaching into screen headers directly — today
+  - [x] `ui_adapter_power`: deliberately no adapter/`step`. `display_sleeping` moved from a
+        UI-Manager-local static into a `device_status` field (SW2's handler is still its sole
+        writer), but the sleep overlay lives on `lv_layer_top()`, above every screen, and both
+        its visibility and any screen redraw happen in the same
+        `lvgl_thread()` iteration before the single `lv_timer_handler()` flush — so the hero/
+        instructions text is only ever visible while awake, and SquareLine's static text
+        ("AWAKE" / "Push SW2 to sleep") is already correct in that state by construction. A
+        `step` that set "SLEEPING" would be covered by the overlay in the same tick it ran,
+        i.e. dead code.
+  - [x] Stop `ui_manager.c` itself from reaching into screen headers directly — today
         `scrSplash_postinit`/`scrOverview_postinit`/`scrOverview_step` are defined inline in
         `ui_manager.c` and `#include "ui.h"` directly; that logic belongs in the adapters above,
         per ARCHITECTURE.md's "adapters are the only other code allowed to reach into generated
         screen headers" rule
-  - [ ] Wire the LVGL thread loop to actually call `device_status_wait()` with a clamped
+  - [x] Wire the LVGL thread loop to actually call `device_status_wait()` with a clamped
         floor/ceiling timeout instead of the current unconditional `k_msleep(10)` — the
         coalescing-semaphore design ARCHITECTURE.md describes is defined in `device_status.c`
         but never called anywhere in `ui_manager.c` yet
