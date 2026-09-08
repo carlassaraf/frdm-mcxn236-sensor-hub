@@ -129,7 +129,7 @@ west build -b frdm_mcxn236 ../deps/zephyr/samples/modules/lvgl/demos -p -- \
         `ui_manager.c` and `#include "ui.h"` directly; that logic belongs in the adapters above,
         per ARCHITECTURE.md's "adapters are the only other code allowed to reach into generated
         screen headers" rule
-  - [ ] Wire the LVGL thread loop to actually call `device_status_wait()` with a clamped
+  - [x] Wire the LVGL thread loop to actually call `device_status_wait()` with a clamped
         floor/ceiling timeout instead of the current unconditional `k_msleep(10)` — the
         coalescing-semaphore design ARCHITECTURE.md describes is defined in `device_status.c`
         but never called anywhere in `ui_manager.c` yet

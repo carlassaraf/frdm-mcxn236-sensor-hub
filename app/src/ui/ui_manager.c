@@ -10,6 +10,11 @@
 
 LOG_MODULE_REGISTER(ui_manager, LOG_LEVEL_INF);
 
+// Never redraw sooner than the floor after the last
+// one, never wait past the ceiling even if nothing changed
+#define UI_WAIT_FLOOR_MS   0
+#define UI_WAIT_CEILING_MS 10
+
 // Private prototypes
 static void lvgl_thread(void *arg1, void *arg2, void *arg3);
 static void ui_go_to_screen(screen_id_t screen);
@@ -85,6 +90,7 @@ void ui_manager_init(void)
 static void lvgl_thread(void *arg1, void *arg2, void *arg3)
 {
   bool overlay_visible = false;
+  int64_t last_redraw_ms = k_uptime_get();
 
   while (1) {
     // Get current screen
@@ -120,6 +126,8 @@ static void lvgl_thread(void *arg1, void *arg2, void *arg3)
       }
       // Update screen tracking
       s_current_screen = s_pending_screen;
+      // Lets other modules see what's on screen without reaching into the UI Manager.
+      device_status_set_active_screen(s_current_screen);
       curr = screens[s_current_screen];
     }
     // Run any available step callback
@@ -128,7 +136,19 @@ static void lvgl_thread(void *arg1, void *arg2, void *arg3)
     }
 
     lv_timer_handler();
-    k_msleep(10);
+
+    // Enforce the floor unconditionally so a burst of writes
+    // can't shrink the gap between redraws below it
+    int64_t since_last_ms = k_uptime_get() - last_redraw_ms;
+    if (since_last_ms < UI_WAIT_FLOOR_MS) {
+      k_msleep(UI_WAIT_FLOOR_MS - since_last_ms);
+    }
+    last_redraw_ms = k_uptime_get();
+    // Block until a producer changes device_status, or the ceiling elapses --
+    // whichever comes first. Either way the loop re-checks s_pending_screen and
+    // the sleep flag next iteration, so this never delays a screen switch or a
+    // sleep toggle by more than UI_WAIT_CEILING_MS.
+    device_status_wait(DEVICE_STATUS_EVT_ALL, K_MSEC(UI_WAIT_CEILING_MS));
   }
 }
 
