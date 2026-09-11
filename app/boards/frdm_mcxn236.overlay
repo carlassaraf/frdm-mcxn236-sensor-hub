@@ -1,4 +1,8 @@
 #include <zephyr/dt-bindings/display/panel.h>
+#include <zephyr/dt-bindings/adc/adc.h>
+#include <zephyr/dt-bindings/adc/mcux-lpadc.h>
+#include <zephyr/dt-bindings/regulator/nxp_vref.h>
+#include <nxp/mcx/MCXN236VDF-pinctrl.h>
 
 &gpio2 {
   status = "okay";
@@ -11,6 +15,52 @@
 /* SW2 (user_button_2) is already enabled at board level for wake/sleep */
 &user_button_3 {
   status = "okay";
+};
+
+/* Disable I2C bus that claims PIO4_0 and PIO4_1 */
+&flexcomm2_lpi2c2 {
+  status = "disabled";
+};
+
+/* Map PIO4_0 to ADC0_0 */
+&pinctrl {
+  pinmux_lpadc0_mq: pinmux_lpadc0_mq {
+    group0 {
+      pinmux = <ADC0_A0_PIO4_0>;
+      slew-rate = "fast";
+      drive-strength = "low";
+    };
+  };
+};
+
+/* External reference, high-power mode -- matches the board's own ADC sample overlay */
+&vref {
+  regulator-initial-mode = <NXP_VREF_MODE_HIGH_POWER>;
+};
+
+/*
+ * Use the default LPADC0 configuration + the new LPADC0_MQ pinctrl group,
+ * plus a channel node for the MQ3's analog input. ADC_DT_SPEC_INST_GET()
+ * (used in mq.c) only fills in .resolution/.oversampling/.channel_cfg from
+ * a channel@N child node like this one -- without it those fields are left
+ * unset, which is what caused the "initializer element is not constant"
+ * build error.
+ */
+&lpadc0 {
+  pinctrl-0 = <&pinmux_lpadc0>, <&pinmux_lpadc0_mq>;
+
+  #address-cells = <1>;
+  #size-cells = <0>;
+
+  channel@0 {
+    reg = <0>;
+    zephyr,gain = "ADC_GAIN_1";
+    zephyr,reference = "ADC_REF_EXTERNAL1";
+    zephyr,vref-mv = <1800>;
+    zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+    zephyr,resolution = <12>;
+    zephyr,input-positive = <MCUX_LPADC_CH0A>; /* P4_0 = ADC0_A0, per pinmux_lpadc0_mq above */
+  };
 };
 
 / {
@@ -59,5 +109,30 @@
       rotation          = <90>;   /* 0 | 90 | 180 | 270 CW — adjust to match physical mount */
       h-mirror;
     };
+  };
+
+  // mq3: mq3 {
+  //   compatible            = "winsen,mq3";
+  //   io-channels           = <&lpadc0 0>; /* channel@0's reg, below -- not a physical channel constant */
+  //   do-gpios              = <&gpio4 1 GPIO_ACTIVE_HIGH>; /* verify polarity against the module's actual DO behavior */
+  //   load-resistance-ohms  = <30000>;
+  //   /* PLACEHOLDER -- not a real calibration value. Build with this, log the
+  //    * raw `rs` computed in mq_ppm() while sitting in clean air for a while,
+  //    * then replace this with that measured value and rebuild. */
+  //   ro-clean-air-ohms     = <1>;
+  // };
+  // mq7: mq7 {
+  //   compatible            = "winsen,mq7";
+  //   io-channels           = <&lpadc0 0>;
+  //   do-gpios              = <&gpio4 1 GPIO_ACTIVE_HIGH>;
+  //   load-resistance-ohms  = <1000>;
+  //   ro-clean-air-ohms     = <1>;
+  // };
+  mq2: mq2 {
+    compatible            = "winsen,mq2";
+    io-channels           = <&lpadc0 0>;
+    do-gpios              = <&gpio4 1 GPIO_ACTIVE_HIGH>;
+    load-resistance-ohms  = <1000>;
+    ro-clean-air-ohms     = <5800>;
   };
 };
