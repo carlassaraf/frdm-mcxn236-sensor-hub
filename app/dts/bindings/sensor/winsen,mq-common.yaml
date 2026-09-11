@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: MQ Sensor family
+
+include: sensor-device.yaml
+
+properties:
+  io-channels:
+    type: phandle-array
+    required: true
+    description: |
+      ADC channel that will perform measurement
+
+  do-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      D0 comparator output — trips against the module's onboard
+      potentiometer threshold. Read as a plain GPIO, not an ADC channel.
+
+  load-resistance-ohms:
+    type: int
+    required: true
+    description: |
+      Module's RL, fixed by its onboard resistor
+
+  ro-clean-air-ohms:
+    type: int
+    required: true
+    description: |
+      Sensor's calibration resistance
+
+  power-supply-microvolts:
+    type: int
+    default: 5000000
+    description: |
+      Supply voltage for the sensor heater
