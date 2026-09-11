@@ -95,14 +95,14 @@ An adapter's `apply(state)` function only ever runs while its screen is the acti
 
 ### 3. Sensor Service
 
-Owns sampling of the accelerometer + the custom gas sensor (ROADMAP §3/§4). Computes
+Owns sampling of the accelerometer + the custom gas sensor (ROADMAP §3/§4/§5). Computes
 *derived* UI-relevant state (status enum: OK/WARN/ERROR against thresholds; not raw
 ADC counts) once, and pushes it into `device_status` via the UI Manager's setters. Also
 the natural place to maintain the raw `sensor_snapshot` the CAN service reads from.
 
 ### 4. CAN Service
 
-Owns the FlexCAN TX/RX (ROADMAP §5): reads the sensor snapshot, packs/sends telemetry
+Owns the FlexCAN TX/RX (ROADMAP §6): reads the sensor snapshot, packs/sends telemetry
 frames, and pushes CAN-relevant display fields (loopback status, frame id, tx interval,
 tx/rx counters) into `device_status`.
 

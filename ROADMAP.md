@@ -254,7 +254,7 @@ reclaim.
 
 ### 3.4 Cross-cutting
 
-- [ ] Warm-up time: MQ-series need tens of seconds to several minutes of heater-on time
+- [x] Warm-up time: MQ-series need tens of seconds to several minutes of heater-on time
       before readings are trustworthy — track elapsed time since `init()` (`k_uptime_get()`),
       and until it's elapsed, either return `-EAGAIN` from `sample_fetch` or report
       `DEVICE_STATUS_WARN` through `channel_get`'s consumer rather than a misleadingly
@@ -269,15 +269,9 @@ reclaim.
       only a rough 2-point fit anyway, see the note above) should be read as illustrative,
       not trusted for real CO measurement. MQ-2/MQ-3 are unaffected; their constant-5V heater
       matches datasheet spec already.
-- [ ] Wire the analog+digital combined status into `device_status`: reuse the existing
-      `device_status_set_environment(value, voltage, status)` seam (fold D0's alarm into
-      the `status` argument — e.g. `DEVICE_STATUS_ERROR` when D0 trips) rather than adding
-      a new field, unless the UI needs to show the raw digital bit independently of the
-      ppm value, in which case follow the existing "one setter per producer" convention
-      (see the `can_rx_count` note in §2) and add an explicit field
 - [x] Wire the driver into the build per the file list above; `env_sim.c`/`CONFIG_ENV_SIM`
       stays as the fallback until this replaces it as the real `device_status_set_environment`
-      producer (that swap is a §4 sensor-sampling-thread concern, not part of the driver itself)
+      producer (that swap is a §5 sensor-sampling-thread concern, not part of the driver itself)
 
       > **Note:** `zephyr_library()` (the `CMakeLists.txt` shape copied from `d6f.c` in §3.1)
       > silently does *not* register into the final link when called from app-mode CMake —
@@ -293,7 +287,39 @@ reclaim.
       the datasheet's high-ppm region, so treat absolute numbers as rough — MQ-3/MQ-7 still
       need their own separate calibration if/when tested again (Ro is per physical unit).
 
-## 4. Threading / concurrency architecture
+## 4. Accelerometer / tilt sensor wiring (FXLS8974)
+
+**Requisites:** re-verify the bus claim below before wiring anything — don't trust this
+roadmap's own Hardware-section snapshot any more than §3.1 trusted it for the gas sensors.
+
+The Hardware section above lists the on-board FXLS8974 as "I3C, upstream Zephyr driver,"
+but that needs a second look: the upstream driver's bindings
+(`nxp,fxls8974-i2c.yaml`/`nxp,fxls8974-spi.yaml`) and its Kconfig
+(`select I2C if ...on i2c`, `select SPI if ...on spi`) only recognize an I2C or SPI
+parent bus — there is no I3C-native binding. The board's default `frdm_mcxn236.dts` only
+sets `&i3c1 { status = "okay"; };` on the controller; it does not instantiate an
+FXLS8974 (or any) child device node, so that has to be added here, the same category of
+work §3.2 did for the MQ analog/digital pins.
+
+Today `CONFIG_TILT_SIM=y` / `tilt_sim.c` (`src/device_status/`) stands in for this exactly
+the way `env_sim.c` stood in for the gas sensor before §3 — same simulate-then-swap shape.
+
+- [ ] Confirm how the on-board FXLS8974 actually attaches to `i3c1`: native I3C target,
+      or a legacy-I2C device hosted on the I3C controller (Zephyr's I3C subsystem has a
+      shim for that). Correct the Hardware section's "(I3C, upstream Zephyr driver)" line
+      once this is settled — it may need to read "I2C-on-I3C" or similar
+- [ ] Add the devicetree child node under `i3c1` (or wherever the above lands it) in the
+      app overlay, plus any Kconfig (`CONFIG_FXLS8974=y`) — driver itself is upstream,
+      no new binding/source needed unless the bus turns out to be genuinely unsupported
+- [ ] Validate standalone: log `SENSOR_CHAN_ACCEL_X/Y/Z` via `sensor_sample_fetch`/
+      `channel_get` to the console before integrating (same "validate before wiring into
+      the app" step §3.4 did for MQ-2)
+- [ ] Wire the driver into the build; `tilt_sim.c`/`CONFIG_TILT_SIM` stays as the fallback
+      until this replaces it as the real tilt producer (that swap is a §5
+      sensor-sampling-thread concern, not part of the driver wiring itself — mirrors the
+      `env_sim`/MQ note in §3.4)
+
+## 5. Threading / concurrency architecture
 
 **See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design** (component map, synchronization
 model, screen lifecycle, thread priority rationale). Summary of the concrete build steps:
@@ -315,7 +341,7 @@ model, screen lifecycle, thread priority rationale). Summary of the concrete bui
 - [ ] Keep every mutex-held critical section short — no I2C/CAN/display-driver calls while holding
       either lock
 
-## 5. CAN (FlexCAN, loopback only)
+## 6. CAN (FlexCAN, loopback only)
 
 - [ ] Enable `CONFIG_CAN=y`; confirm `can0` node status in the overlay
 - [ ] Configure `CAN_MODE_LOOPBACK` at init
@@ -323,13 +349,6 @@ model, screen lifecycle, thread priority rationale). Summary of the concrete bui
 - [ ] TX thread sends telemetry every N ms; RX filter/callback decodes command frames and submits the wake `k_work`
 - [ ] Verify TX == RX end-to-end in loopback via shell/log
 - [ ] *(Not now, documented as a future extension)* real bus access via USB-CAN adapter or a second board
-
-## 6. C++ application layer
-
-- [ ] Enable `CONFIG_CPP=y`, `CONFIG_CPLUSPLUS=y`, `CONFIG_STD_CPP17=y`, `CONFIG_LIB_CPLUSPLUS=y`
-- [ ] Wrap the sensor snapshot in a small C++ class (RAII lock guard around the `k_mutex`)
-- [ ] Wrap CAN telemetry packing/parsing in a C++ class
-- [ ] Keep a clean `extern "C"` boundary between LVGL/driver C APIs and the C++ app layer
 
 ## 7. Secure boot (MCUboot)
 
@@ -353,7 +372,22 @@ model, screen lifecycle, thread priority rationale). Summary of the concrete bui
 - [ ] If a multimeter/power profiler is available, measure actual current draw (reference figures for this SoC family: ~8 µA standby, ~196 µA suspend-to-idle, ~13.5 mA runtime-idle)
 - [ ] Confirm the display driver handles blanking/backlight power-down cleanly across sleep cycles
 
-## 9. Stretch goals (optional, not required for v1)
+## 9. C++ application layer
+
+`main.cpp` is already a `.cpp` file (compiles today without `CONFIG_CPP` since it only
+uses `extern "C"`-compatible constructs so far); this section is about formalizing the
+C/C++ boundary and actually using it, not bootstrapping the file's existence. Pushed to
+just before the stretch goals: everything above it (driver, threading, CAN, secure boot,
+low power) is more central to the "from-scratch driver + concurrency + CAN" learning
+goals than the language-boundary exercise is, so land those first and layer C++ on top
+once the C core is stable rather than migrating mid-flight.
+
+- [ ] Enable `CONFIG_CPP=y`, `CONFIG_CPLUSPLUS=y`, `CONFIG_STD_CPP17=y`, `CONFIG_LIB_CPLUSPLUS=y`
+- [ ] Wrap the sensor snapshot in a small C++ class (RAII lock guard around the `k_mutex`)
+- [ ] Wrap CAN telemetry packing/parsing in a C++ class
+- [ ] Keep a clean `extern "C"` boundary between LVGL/driver C APIs and the C++ app layer
+
+## 10. Stretch goals (optional, not required for v1)
 
 - [ ] Real CAN bus test with a USB-CAN adapter or a second board
 - [ ] MCUboot image encryption

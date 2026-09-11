@@ -22,7 +22,7 @@ static void device_status_uptime_update(struct k_work *work);
 /*
  * Standalone validation poll (ROADMAP.md #3's "validate standalone before
  * integrating into the main app" step) -- not the real sensor-sampling-thread
- * integration from ROADMAP.md #4 yet, just enough to confirm the driver
+ * integration from ROADMAP.md #5 yet, just enough to confirm the driver
  * produces sane ppm/alarm values now that Ro is calibrated.
  */
 #if DT_NODE_EXISTS(DT_NODELABEL(mq2))
