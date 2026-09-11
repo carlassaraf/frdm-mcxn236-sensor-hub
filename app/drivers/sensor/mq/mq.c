@@ -45,6 +45,27 @@ static int mq_sample_fetch(const struct device *dev, enum sensor_channel chan)
 }
 
 /*
+ * Shared raw-ADC-code -> volts conversion, used by both the ppm math and the
+ * raw voltage channel below. Goes through adc_raw_to_microvolts_dt() rather
+ * than a hand-rolled formula so it automatically respects whatever
+ * reference/gain the devicetree channel@0 node actually configures --
+ * adc_ref_internal() (tried here previously) only reports a driver's
+ * ADC_REF_INTERNAL bandgap value, which adc_mcux_lpadc.c doesn't even
+ * populate; it silently returned 0 regardless of the real reading.
+ */
+static int mq_voltage(const struct mq_config *config, const struct mq_data *data, float *v_out)
+{
+  int32_t uv = data->sample;
+  int ret = adc_raw_to_microvolts_dt(config->adc, &uv);
+  if (ret != 0) {
+    return ret;
+  }
+
+  *v_out = uv / 1000000.0f;
+  return 0;
+}
+
+/*
  * MQ datasheets give the Rs/Ro-vs-ppm curve as a straight line in log-log
  * space: log10(ppm) = m*log10(Rs/Ro) + b, with (m, b) read off the
  * datasheet's graph for the target gas. Rs itself isn't measured directly --
@@ -54,13 +75,12 @@ static int mq_sample_fetch(const struct device *dev, enum sensor_channel chan)
 static int mq_ppm(const struct mq_config *config, const struct mq_data *data,
                    struct sensor_value *val)
 {
-  int32_t uv = data->sample;
-  int ret = adc_raw_to_microvolts_dt(config->adc, &uv);
+  float v_out;
+  int ret = mq_voltage(config, data, &v_out);
   if (ret != 0) {
     return ret;
   }
 
-  float v_out = uv / 1000000.0f;
   if (v_out <= 0.0f) {
     /* Sensor disconnected or RL wired backwards -- Rs would be infinite/negative. */
     return -EIO;
@@ -83,6 +103,14 @@ static int mq_channel_get(const struct device *dev, enum sensor_channel chan, st
   const struct mq_config *config = dev->config;
   const struct mq_data *data = dev->data;
 
+  if (chan == (enum sensor_channel)SENSOR_CHAN_MQ_MV) {
+    float v_out;
+    int ret = mq_voltage(config, data, &v_out);
+    if (ret != 0) {
+      return ret;
+    }
+    return sensor_value_from_float(val, v_out);
+  }
   if (chan == (enum sensor_channel)SENSOR_CHAN_MQ_ALARM) {
     val->val1 = data->digital_out ? 1 : 0;
     val->val2 = 0;
