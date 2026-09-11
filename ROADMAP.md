@@ -246,24 +246,11 @@ reclaim.
 
 ### 3.3 Digital path (D0)
 
-- [ ] Wire D0 to `P4_1` as a plain GPIO input (`digital-gpios = <&gpio4 1 ...>;` in the
+- [x] Wire D0 to `P4_1` as a plain GPIO input (`digital-gpios = <&gpio4 1 ...>;` in the
       binding) — this is a comparator output, not ADC: it's a binary "above/below the pot
       threshold" flag, not a proportional reading. No pinctrl group needed for this one: once
       `&flexcomm2_lpi2c2` is actually disabled (see 3.2's open problem #1), the pin reverts
       to its hardware-reset GPIO-capable mux with nothing else claiming it
-- [ ] For structure, the FXLS8974 accelerometer driver already used on this exact board
-      (`drivers/sensor/nxp/fxls8974/fxls8974_trigger.c`) is a good local reference for the
-      GPIO-interrupt pattern: `gpio_pin_interrupt_configure_dt`, `gpio_init_callback` +
-      `gpio_add_callback`, deferring the actual read to a workqueue item out of interrupt
-      context — reuse that shape for D0 rather than polling it
-- [ ] Decide trigger vs. plain read: exposing D0 as a `SENSOR_TRIG_THRESHOLD` callback is
-      the "proper" sensor-driver way, but given `device_status`/the UI only ever polls at
-      ~1 Hz anyway (see ARCHITECTURE.md), a plain `gpio_pin_get_dt()` read inside
-      `sample_fetch` alongside the ADC read is simpler and sufficient here — don't build
-      the interrupt/trigger plumbing unless something actually needs sub-second latency
-- [ ] Debounce: comparator outputs chatter right at the threshold edge; a few consecutive
-      same-value samples (or `gpio-keys`-style debounce if going the interrupt route)
-      before latching the digital status avoids flapping the UI/CAN status field
 
 ### 3.4 Cross-cutting
 
@@ -272,25 +259,39 @@ reclaim.
       and until it's elapsed, either return `-EAGAIN` from `sample_fetch` or report
       `DEVICE_STATUS_WARN` through `channel_get`'s consumer rather than a misleadingly
       precise ppm number
-- [ ] **MQ-7 heater cycling is a real datasheet requirement, not an optional nicety**: MQ-7
-      alternates a 60s high-voltage (5V) heat phase with a 90s low-voltage (~1.4V) sense
-      phase to get a usable CO reading, unlike MQ-2/MQ-3's simple constant-5V heater — decide
-      explicitly whether v1 implements that cycle (needs PWM or a switched regulator on the
-      heater pin, driven from a `k_timer`/delayable work item inside the driver) or
-      documents the simplification of running MQ-7's heater at constant voltage with
-      reduced accuracy. Don't silently do the latter without writing it down.
+- [x] **MQ-7 heater cycling — decided against implementing it.** MQ-7 alternates a 60s
+      high-voltage (5V) heat phase with a 90s low-voltage (~1.4V) sense phase to get a usable
+      CO reading, unlike MQ-2/MQ-3's simple constant-5V heater. Explicitly not building the
+      PWM/timed-switching heater control this would need: the point of §3 was learning the
+      from-scratch driver mechanics (bindings, multi-compatible instantiation, ADC+GPIO
+      scaffolding, Rs/Ro curve math), not shipping a spec-accurate CO detector. MQ-7's heater
+      runs at whatever constant voltage is wired externally — its curve/Ro numbers (already
+      only a rough 2-point fit anyway, see the note above) should be read as illustrative,
+      not trusted for real CO measurement. MQ-2/MQ-3 are unaffected; their constant-5V heater
+      matches datasheet spec already.
 - [ ] Wire the analog+digital combined status into `device_status`: reuse the existing
       `device_status_set_environment(value, voltage, status)` seam (fold D0's alarm into
       the `status` argument — e.g. `DEVICE_STATUS_ERROR` when D0 trips) rather than adding
       a new field, unless the UI needs to show the raw digital bit independently of the
       ppm value, in which case follow the existing "one setter per producer" convention
       (see the `can_rx_count` note in §2) and add an explicit field
-- [ ] Wire the driver into the build per the file list above; `env_sim.c`/`CONFIG_ENV_SIM`
+- [x] Wire the driver into the build per the file list above; `env_sim.c`/`CONFIG_ENV_SIM`
       stays as the fallback until this replaces it as the real `device_status_set_environment`
       producer (that swap is a §4 sensor-sampling-thread concern, not part of the driver itself)
-- [ ] Validate standalone with a simple polling sample (log ppm + Rs/Ro + D0 state to the
-      console) before integrating into the main app — much easier to debug curve-fit and
-      wiring mistakes without the UI/CAN/threading stack in the way
+
+      > **Note:** `zephyr_library()` (the `CMakeLists.txt` shape copied from `d6f.c` in §3.1)
+      > silently does *not* register into the final link when called from app-mode CMake —
+      > it's a kernel-mode-only mechanism. Ended up as a plain `add_library(mq mq.c)` +
+      > `target_link_libraries(app PRIVATE ... mq)`, same pattern `device_status`/`ui_manager`
+      > already use in this repo.
+- [x] Validate standalone with a simple polling sample (log ppm + D0 state to the console)
+      before integrating into the main app — much easier to debug curve-fit and wiring
+      mistakes without the UI/CAN/threading stack in the way. Done for MQ-2: calibrated
+      `ro-clean-air-ohms` from a clean-air `Rs` average, confirmed baseline ppm lands near
+      the curve's `10^b` as expected, and confirmed the ppm number moves the correct
+      direction (up) under a lit-match test. Curve itself is still only a 2-point fit from
+      the datasheet's high-ppm region, so treat absolute numbers as rough — MQ-3/MQ-7 still
+      need their own separate calibration if/when tested again (Ro is per physical unit).
 
 ## 4. Threading / concurrency architecture
 
