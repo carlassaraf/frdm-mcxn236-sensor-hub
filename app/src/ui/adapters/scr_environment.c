@@ -15,13 +15,26 @@ static void scrEnvironment_postInit(void)
 
 static void scrEnvironment_step(void)
 {
+  static float env_value;
+  static float env_voltage;
+  static device_status_t env_status;
+
   struct device_status dev;
   device_status_get(&dev);
 
-  lv_label_set_text_fmt(ui_envHeroValue, "%.1f", dev.env_value);
-  scrEnvironment_status_helper((dev.env_value > 150)? DEVICE_STATUS_ERROR : DEVICE_STATUS_OK, ui_envHerounit, "ppm - good", "", "ppm - dangerous", "");
-  lv_label_set_text_fmt(ui_envVoltageV, "%.3f V", dev.env_voltage);
-  scrEnvironment_status_helper(dev.env_status, ui_envStatusV, "Good", "Degraded", "Faulty", "Unknown");
+  if(dev.env_value != env_value) {
+    env_value = dev.env_value;
+    lv_label_set_text_fmt(ui_envHeroValue, "%.1f", dev.env_value);
+    scrEnvironment_status_helper((dev.env_value > 150)? DEVICE_STATUS_ERROR : DEVICE_STATUS_OK, ui_envHerounit, "ppm - good", "", "ppm - dangerous", "");
+  }
+  if(dev.env_voltage != env_voltage) {
+    env_voltage = dev.env_voltage;
+    lv_label_set_text_fmt(ui_envVoltageV, "%.3f V", dev.env_voltage);
+  }
+  if(dev.env_status != env_status) {
+    env_status = dev.env_status;
+    scrEnvironment_status_helper(dev.env_status, ui_envStatusV, "Good", "Degraded", "Faulty", "Unknown");
+  }
 }
 
 static void scrEnvironment_status_helper(device_status_t status, lv_obj_t *lbl, const char *ok_text, const char *wrn_text, const char *err_text, const char *unkn_text)
