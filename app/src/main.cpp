@@ -36,11 +36,15 @@ static void mq2_poll_update(struct k_work *work)
     LOG_ERR("MQ-2 sample fetch failed: %d", ret);
   } else {
     struct sensor_value smoke;
-    struct sensor_value alarm;
+    struct sensor_value voltage;
 
     if (sensor_channel_get(mq2_dev, (enum sensor_channel)SENSOR_CHAN_MQ_SMOKE, &smoke) == 0 &&
-        sensor_channel_get(mq2_dev, (enum sensor_channel)SENSOR_CHAN_MQ_ALARM, &alarm) == 0) {
-      LOG_INF("smoke = %d.%06d ppm, alarm = %d", smoke.val1, smoke.val2, alarm.val1);
+        sensor_channel_get(mq2_dev, (enum sensor_channel)SENSOR_CHAN_MQ_MV, &voltage) == 0) {
+      // Update device_status to be read by screen
+      float smoke_f = sensor_value_to_float(&smoke);
+      float voltage_f = sensor_value_to_float(&voltage);
+      LOG_INF("smoke = %.2f ppm, voltage = %.3f", smoke_f, voltage_f);
+      device_status_set_environment(smoke_f, voltage_f, DEVICE_STATUS_OK);
     }
   }
 
@@ -76,10 +80,6 @@ int main(void)
 #if defined(CONFIG_TILT_SIM)
   tilt_sim_start();
 #endif
-#if defined(CONFIG_ENV_SIM)
-  env_sim_start();
-#endif
-
 
   return 0;
 }
