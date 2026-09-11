@@ -111,27 +111,10 @@
     };
   };
 
-  // mq3: mq3 {
-  //   compatible            = "winsen,mq3";
-  //   io-channels           = <&lpadc0 0>; /* channel@0's reg, below -- not a physical channel constant */
-  //   do-gpios              = <&gpio4 1 GPIO_ACTIVE_HIGH>; /* verify polarity against the module's actual DO behavior */
-  //   load-resistance-ohms  = <30000>;
-  //   /* PLACEHOLDER -- not a real calibration value. Build with this, log the
-  //    * raw `rs` computed in mq_ppm() while sitting in clean air for a while,
-  //    * then replace this with that measured value and rebuild. */
-  //   ro-clean-air-ohms     = <1>;
-  // };
-  // mq7: mq7 {
-  //   compatible            = "winsen,mq7";
-  //   io-channels           = <&lpadc0 0>;
-  //   do-gpios              = <&gpio4 1 GPIO_ACTIVE_HIGH>;
-  //   load-resistance-ohms  = <1000>;
-  //   ro-clean-air-ohms     = <1>;
-  // };
   mq2: mq2 {
     compatible            = "winsen,mq2";
     io-channels           = <&lpadc0 0>;
-    do-gpios              = <&gpio4 1 GPIO_ACTIVE_HIGH>;
+    do-gpios              = <&gpio4 1 GPIO_ACTIVE_LOW>;
     load-resistance-ohms  = <1000>;
     ro-clean-air-ohms     = <5800>;
   };
