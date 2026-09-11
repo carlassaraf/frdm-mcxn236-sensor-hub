@@ -17,16 +17,16 @@
   status = "okay";
 };
 
-/* Disable I2C bus that claims PIO4_0 and PIO4_1 */
-&flexcomm2_lpi2c2 {
+/* Disable UART2 bus that claims PIO4_2 and PIO4_3 */
+&flexcomm2_lpuart2 {
   status = "disabled";
 };
 
-/* Map PIO4_0 to ADC0_0 */
+/* Map PIO4_2 to ADC0_4 */
 &pinctrl {
   pinmux_lpadc0_mq: pinmux_lpadc0_mq {
     group0 {
-      pinmux = <ADC0_A0_PIO4_0>;
+      pinmux = <ADC0_A4_PIO4_2>;
       slew-rate = "fast";
       drive-strength = "low";
     };
@@ -59,7 +59,7 @@
     zephyr,vref-mv = <1800>;
     zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
     zephyr,resolution = <12>;
-    zephyr,input-positive = <MCUX_LPADC_CH0A>; /* P4_0 = ADC0_A0, per pinmux_lpadc0_mq above */
+    zephyr,input-positive = <MCUX_LPADC_CH4A>; /* P4_2 = ADC0_A4, per pinmux_lpadc0_mq above */
   };
 };
 
@@ -114,8 +114,18 @@
   mq2: mq2 {
     compatible            = "winsen,mq2";
     io-channels           = <&lpadc0 0>;
-    do-gpios              = <&gpio4 1 GPIO_ACTIVE_LOW>;
+    do-gpios              = <&gpio4 3 GPIO_ACTIVE_LOW>;
     load-resistance-ohms  = <1000>;
     ro-clean-air-ohms     = <5800>;
+  };
+};
+
+/* FXLS8974 accelerometer on I2C2 */
+&flexcomm2_lpi2c2 {
+  status = "okay";
+
+  fxls: fxls@30 {
+    compatible = "nxp,fxls8974";
+    reg = <0x30>;
   };
 };
