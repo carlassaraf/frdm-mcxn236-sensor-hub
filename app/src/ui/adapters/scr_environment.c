@@ -18,9 +18,9 @@ static void scrEnvironment_step(void)
   struct device_status dev;
   device_status_get(&dev);
 
-  lv_label_set_text_fmt(ui_envHeroValue, "%3d", (uint16_t)dev.env_value);
+  lv_label_set_text_fmt(ui_envHeroValue, "%.1f", dev.env_value);
   scrEnvironment_status_helper((dev.env_value > 150)? DEVICE_STATUS_ERROR : DEVICE_STATUS_OK, ui_envHerounit, "ppm - good", "", "ppm - dangerous", "");
-  lv_label_set_text_fmt(ui_envVoltageV, "%01d.%03d V", (uint8_t)(dev.env_voltage), ((uint32_t)(dev.env_voltage * 1000) % 1000));
+  lv_label_set_text_fmt(ui_envVoltageV, "%.3f V", dev.env_voltage);
   scrEnvironment_status_helper(dev.env_status, ui_envStatusV, "Good", "Degraded", "Faulty", "Unknown");
 }
 
