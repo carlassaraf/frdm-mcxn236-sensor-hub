@@ -1,0 +1,6 @@
+config MQ
+  bool "MQ gas sensor"
+  default n
+  select SENSOR
+  select ADC
+  select FPU if CPU_HAS_FPU

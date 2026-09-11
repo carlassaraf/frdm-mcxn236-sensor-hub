@@ -38,7 +38,7 @@ lv_obj_set_style_text_font(ui_envHeroValue, &ui_font_InterBold28, LV_PART_MAIN| 
 ui_envHerounit = lv_label_create(ui_scrEnvironment);
 lv_obj_set_width( ui_envHerounit, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_envHerounit, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_envHerounit, 75 );
+lv_obj_set_x( ui_envHerounit, 80 );
 lv_obj_set_y( ui_envHerounit, 43 );
 lv_label_set_text(ui_envHerounit,"ppm - good");
 ui_object_set_themeable_style_property(ui_envHerounit, LV_PART_MAIN| LV_STATE_DEFAULT, LV_STYLE_TEXT_COLOR, _ui_theme_color_okg);

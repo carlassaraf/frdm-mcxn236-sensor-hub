@@ -1,0 +1,3 @@
+description: Winsen MQ-2 Methane, Butane, LPG, smoke
+compatible: "winsen,mq2"
+include: winsen,mq-common.yaml
