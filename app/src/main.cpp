@@ -72,6 +72,7 @@ int main(void)
   if (!device_is_ready(mq2_dev)) {
     LOG_ERR("MQ-2 device not ready");
   } else {
+    device_status_set_environment_identity(mq2_dev->name, DT_IO_CHANNELS_INPUT(DT_NODELABEL(mq2)));
     k_work_init_delayable(&mq2_poll_work, mq2_poll_update);
     k_work_reschedule(&mq2_poll_work, K_SECONDS(1));
   }

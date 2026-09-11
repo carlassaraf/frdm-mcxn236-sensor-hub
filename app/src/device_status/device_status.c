@@ -1,4 +1,5 @@
 #include "device_status.h"
+#include <ctype.h>
 
 static struct device_status s_status;
 static struct k_mutex s_mutex;
@@ -46,8 +47,12 @@ void device_status_set_tilt(float x, float y, float z, device_status_t status)
 
 void device_status_set_environment_identity(const char *sensor_name, uint8_t channel)
 {
+  static char name[4];
+  strncpy(name, sensor_name, 3);
+  name[0] = toupper(name[0]); name[1] = toupper(name[1]);
+
   k_mutex_lock(&s_mutex, K_FOREVER);
-  s_status.env_sensor_name = sensor_name;
+  s_status.env_sensor_name = name;
   s_status.env_channel = channel;
   k_mutex_unlock(&s_mutex);
   notify_changed(DEVICE_STATUS_EVT_ENVIRONMENT);
