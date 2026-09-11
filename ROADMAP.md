@@ -8,13 +8,14 @@ built on the NXP FRDM-MCXN236 (Zephyr RTOS).
 - FRDM-MCXN236 dev board
 - ILI9341 2.4" parallel LCD (MCUFRIEND-style Arduino Uno shield, 8-bit 8080 bus)
 - On-board FXLS8974 accelerometer (I3C, upstream Zephyr driver)
-- A sensor with **no existing Zephyr driver** for the from-scratch driver exercise
-  (default recommendation: **MQ-135 analog air-quality/gas sensor** — plain ADC read
-  + datasheet conversion curve, no upstream Zephyr binding, cheap and common locally.
-  Note: HC-SR04 and Hall-effect pulse flow meters — both earlier candidates — turned
-  out to already have upstream drivers as of 2024/2026, so they're excluded. Always
-  re-check `zephyr/drivers/sensor` before committing to a part; upstream coverage
-  keeps growing.)
+- A sensor with **no existing Zephyr driver** for the from-scratch driver exercise —
+  settled on the **Winsen MQ-2 / MQ-3 / MQ-7 breakout modules** (smoke-LPG, alcohol,
+  CO respectively). Each module exposes both an analog output (buffered Rs divider
+  voltage, `A0`) and a comparator digital output (`D0`, trips against an on-board
+  potentiometer threshold) — no upstream Zephyr binding for any of them. Note:
+  HC-SR04 and Hall-effect pulse flow meters — both earlier candidates — turned out to
+  already have upstream drivers as of 2024/2026, so they're excluded. Always re-check
+  `zephyr/drivers/sensor` before committing to a part; upstream coverage keeps growing.
 - No second CAN node for now — FlexCAN loopback only
 
 ## Architecture summary
@@ -101,7 +102,7 @@ west build -b frdm_mcxn236 ../deps/zephyr/samples/modules/lvgl/demos -p -- \
 - [x] Implement the shared `device_status` struct + its `k_mutex`, plus the coalescing binary
       semaphore that wakes the UI Manager thread on change (see ARCHITECTURE.md's
       synchronization model — no message queue, latest-value-wins everywhere)
-- [ ] Implement one adapter module per screen translating `device_status` → that screen's widgets;
+- [x] Implement one adapter module per screen translating `device_status` → that screen's widgets;
       keep these in new hand-written files (`ui_adapter_<screen>.c`), never inside the generated
       `screens/*.c`
   - [x] `ui_adapter_splash`: relocate the existing version-string `postinit` out of `ui_manager.c`
@@ -141,17 +142,155 @@ west build -b frdm_mcxn236 ../deps/zephyr/samples/modules/lvgl/demos -p -- \
 >    `can_rx_count` (matches the existing "one setter per producer" pattern — loopback TX==RX
 >    verification is already a checklist item below) or simplify the widget to TX-only.
 
-## 3. Custom sensor driver (from scratch)
+## 3. Custom sensor driver (from scratch) — MQ-2 / MQ-3 / MQ-7
 
-**Requisites:** a sensor genuinely absent from `zephyr/drivers/sensor` (verify with a grep — do not assume, upstream coverage keeps growing). Default pick: **MQ-135** analog air-quality sensor (or MQ-2/MQ-3/MQ-7 — same driver shape). Pure ADC input + a datasheet Rs/Ro-vs-ppm conversion curve; the upstream `sensor/omron/d6f` flow driver is a good structural reference for an ADC-based sensor driver with a polynomial conversion.
+**Requisites:** a sensor genuinely absent from `zephyr/drivers/sensor` (verify with a grep —
+do not assume, upstream coverage keeps growing). One driver source handles all three
+Winsen modules via three devicetree compatibles (`winsen,mq2`/`winsen,mq3`/`winsen,mq7` —
+`winsen` is already a registered vendor prefix in `dts/bindings/vendor-prefixes.txt`),
+each instance carrying its own curve constants — same multi-compatible shape as the
+upstream `sensor/omron/d6f` flow driver (good structural reference for the ADC
+scaffolding: `adc_dt_spec`, `adc_sequence`, `DT_INST_FOREACH_STATUS_OKAY_VARGS` fanning
+one `_INIT` macro out per compatible). The **math differs from d6f**, though: MQ
+datasheets give Rs/Ro vs ppm as a straight line in *log-log* space
+(`log10(ppm) = m·log10(Rs/Ro) + b`, one `(m, b)` pair per gas curve on the datasheet
+graph), not a polynomial in voltage — compute `Rs` from the measured voltage and a known
+load resistor, then `Rs/Ro`, then invert the log-log line, per channel below.
 
-- [ ] Confirm the chosen sensor has no upstream driver (`grep -ri mq13 zephyr/drivers/sensor` etc. — re-check, don't trust this roadmap's snapshot)
-- [ ] Wire the sensor's analog output to an MCXN236 ADC-capable pin on the Arduino header (LPADC), plus its heater supply per the datasheet warm-up requirement
-- [ ] Create the out-of-tree driver: `dts/bindings/sensor/*.yaml` binding (`io-channels` property for the ADC), `drivers/sensor/<name>/<name>.c`, `Kconfig`, `CMakeLists.txt`
-- [ ] Implement `sample_fetch` (ADC read via the `adc_dt_spec`/`adc_sequence` API) and `channel_get` (apply the Rs/Ro curve, report on `SENSOR_CHAN_GAS_RES` or a custom channel)
-- [ ] Account for the sensor's warm-up time (MQ-series typically need tens of seconds to minutes before stable readings)
-- [ ] Wire the driver into the build (`ZEPHYR_EXTRA_MODULES` or an app-local `drivers/` tree)
-- [ ] Validate standalone with a simple polling sample before integrating into the main app
+Each module also has a **digital comparator output (D0)** in addition to the analog
+one (A0) — this repo's `env_sim.c` already anticipates only the analog half
+(`device_status_set_environment(value, voltage, status)`); D0 needs its own path.
+
+### 3.1 Files to create
+
+```
+app/
+├── dts/bindings/sensor/
+│   ├── winsen,mq-common.yaml   # shared props: io-channels, load resistor, ro,
+│   │                           #   digital-gpios, warmup, digital-debounce
+│   ├── winsen,mq2.yaml         # compatible: "winsen,mq2", includes mq-common
+│   ├── winsen,mq3.yaml         # compatible: "winsen,mq3", includes mq-common
+│   └── winsen,mq7.yaml         # compatible: "winsen,mq7", includes mq-common
+├── drivers/sensor/mq/
+│   ├── CMakeLists.txt          # zephyr_library() + zephyr_library_sources(mq.c)
+│   ├── Kconfig                 # config MQ, depends on DT_HAS_WINSEN_MQ{2,3,7}_ENABLED
+│   ├── mq.h                    # shared config/data structs, per-variant curve table
+│   └── mq.c                    # sample_fetch/channel_get/init, one _INIT macro,
+│                               #   DT_DRV_COMPAT fanned out 3x like d6f.c
+├── boards/frdm_mcxn236.overlay # add the mq2/mq3/mq7 DT node(s) + any extra pinctrl
+├── Kconfig                     # rsource "drivers/sensor/mq/Kconfig"
+├── CMakeLists.txt              # add_subdirectory(drivers/sensor/mq)
+└── prj.conf                    # CONFIG_MQ=y (and CONFIG_ADC=y, pulled in by select)
+```
+
+`app/` is already in Zephyr's `DTS_ROOT` (Zephyr's `pre_dt.cmake` adds
+`APPLICATION_SOURCE_DIR` automatically), so `app/dts/bindings/sensor/*.yaml` is picked
+up with zero extra config — **no `ZEPHYR_EXTRA_MODULES`/`module.yml` needed**, this can
+just be a plain library subdirectory wired into `app/CMakeLists.txt`/`app/Kconfig`
+exactly the way `src/device_status` already is.
+
+### 3.2 Analog path (A0)
+
+**Pin decision:** `P4_0` (ADC0 channel `A0`) for analog, `P4_1` for digital — both live on
+the `J5` connector next to 5V/GND rather than the Arduino header. Settled after ruling out
+two other candidates: `P1_16` (`ADC1_A16`) is out — it's the same net as the onboard
+`&i3c1` SDA line (`pinmux_i3c1`, already `status = "okay"` for the onboard FXLS8974
+accelerometer) and also Arduino `D14`; re-muxing it would break the accelerometer. `P4_0`/
+`P4_1` needed `&flexcomm2_lpi2c2` (I2C2, board-default `status = "okay"`, meant for the
+unpopulated DA7212 codec / touch-panel / camera-connector header that likely *is* `J5`)
+freed first, but nothing in this app instantiates a device on that bus, so it's safe to
+reclaim.
+
+- [x] Confirm the chosen sensors have no upstream driver (`grep -ri "mq2\|mq3\|mq7" zephyr/drivers/sensor` — re-check, don't trust this roadmap's snapshot)
+- [x] Pick the analog/digital pins and free them from their board-default peripheral (see
+      decision above) — **first pass in the overlay has two open problems, re-check before
+      relying on it:**
+      1. `&pinmux_flexcomm2_i2c { status = "disabled"; };` disables the *pinctrl group node*,
+         not the *consumer*. Status on a plain pin-config node isn't something Zephyr's
+         pinctrl codegen checks — the actual peripheral, `&flexcomm2_lpi2c2`, is still
+         `status = "okay"` from the board dts and will still apply that group's mux on init.
+         This is very likely a no-op; disable `&flexcomm2_lpi2c2` itself instead.
+      2. `&lpadc0`'s `pinctrl-0` was never updated to include the new `pinmux_lpadc0_mq`
+         group — as written, that group is defined but unreferenced, so `P4_0` never
+         actually gets muxed to `ADC0_A0`. Needs `pinctrl-0 = <&pinmux_lpadc0>,
+         <&pinmux_lpadc0_mq>;` added to the `&lpadc0` override.
+
+      Verify both with the generated devicetree (`build/zephyr/zephyr.dts`, or
+      `west build -t pinctrl` output) — confirm `flexcomm2_lpi2c2`'s status and `lpadc0`'s
+      `pinctrl-0` list actually show what's intended before wiring up hardware.
+- [x] Wire the heater supply (5V) per the datasheet warm-up requirement
+- [x] Write the devicetree binding: `io-channels` (phandle-array to `&lpadc0`),
+      `load-resistance-ohms` (the module's RL, fixed by its onboard resistor — check the
+      specific breakout's silkscreen/schematic, common values are 1k–10kΩ, don't assume),
+      and `ro-clean-air-ohms` — see calibration note below for why this is a DT property
+      rather than a compile-time constant
+- [x] Implement `sample_fetch` (ADC read via `adc_dt_spec`/`adc_sequence`, same shape as
+      `d6f_sample_fetch`) and `channel_get` reporting `SENSOR_CHAN_GAS_RES` (raw `Rs/Ro`
+      ratio) and a custom channel for ppm (`SENSOR_CHAN_PRIV_START`-based enum in `mq.h`,
+      one per gas: smoke/LPG for MQ-2, alcohol for MQ-3, CO for MQ-7)
+- [x] Per-variant curve constants: a small table of `(m, b)` log-log coefficients keyed by
+      `DT_DRV_COMPAT`, mirroring how `d6f.c` keeps a separate polynomial array per
+      compatible — pull the actual numbers off each datasheet's Rs/Ro-vs-ppm graph, not
+      off a random blog post (several widely-copied MQ-2 "Arduino library" curve-fit
+      constants online are wrong)
+- [x] **Ro calibration is the easy-to-skip step that silently wrecks accuracy**: Ro (the
+      sensor's own Rs in clean, known-good air) varies per physical unit and drifts with
+      age — it is *not* a datasheet constant, only the clean-air `Rs/Ro` ratio is. Options,
+      pick one deliberately rather than defaulting to "hardcode a number":
+      - Fixed `ro-clean-air-ohms` DT property, measured once per physical board in known
+        clean air and written into the overlay (simplest, fine for this exercise, degrades
+        as the sensor ages)
+      - A one-shot calibration routine in `init()` or a shell command that samples for the
+        warm-up period and derives `Ro` from the known clean-air ratio, only re-run
+        manually (more correct, more code)
+
+### 3.3 Digital path (D0)
+
+- [ ] Wire D0 to `P4_1` as a plain GPIO input (`digital-gpios = <&gpio4 1 ...>;` in the
+      binding) — this is a comparator output, not ADC: it's a binary "above/below the pot
+      threshold" flag, not a proportional reading. No pinctrl group needed for this one: once
+      `&flexcomm2_lpi2c2` is actually disabled (see 3.2's open problem #1), the pin reverts
+      to its hardware-reset GPIO-capable mux with nothing else claiming it
+- [ ] For structure, the FXLS8974 accelerometer driver already used on this exact board
+      (`drivers/sensor/nxp/fxls8974/fxls8974_trigger.c`) is a good local reference for the
+      GPIO-interrupt pattern: `gpio_pin_interrupt_configure_dt`, `gpio_init_callback` +
+      `gpio_add_callback`, deferring the actual read to a workqueue item out of interrupt
+      context — reuse that shape for D0 rather than polling it
+- [ ] Decide trigger vs. plain read: exposing D0 as a `SENSOR_TRIG_THRESHOLD` callback is
+      the "proper" sensor-driver way, but given `device_status`/the UI only ever polls at
+      ~1 Hz anyway (see ARCHITECTURE.md), a plain `gpio_pin_get_dt()` read inside
+      `sample_fetch` alongside the ADC read is simpler and sufficient here — don't build
+      the interrupt/trigger plumbing unless something actually needs sub-second latency
+- [ ] Debounce: comparator outputs chatter right at the threshold edge; a few consecutive
+      same-value samples (or `gpio-keys`-style debounce if going the interrupt route)
+      before latching the digital status avoids flapping the UI/CAN status field
+
+### 3.4 Cross-cutting
+
+- [ ] Warm-up time: MQ-series need tens of seconds to several minutes of heater-on time
+      before readings are trustworthy — track elapsed time since `init()` (`k_uptime_get()`),
+      and until it's elapsed, either return `-EAGAIN` from `sample_fetch` or report
+      `DEVICE_STATUS_WARN` through `channel_get`'s consumer rather than a misleadingly
+      precise ppm number
+- [ ] **MQ-7 heater cycling is a real datasheet requirement, not an optional nicety**: MQ-7
+      alternates a 60s high-voltage (5V) heat phase with a 90s low-voltage (~1.4V) sense
+      phase to get a usable CO reading, unlike MQ-2/MQ-3's simple constant-5V heater — decide
+      explicitly whether v1 implements that cycle (needs PWM or a switched regulator on the
+      heater pin, driven from a `k_timer`/delayable work item inside the driver) or
+      documents the simplification of running MQ-7's heater at constant voltage with
+      reduced accuracy. Don't silently do the latter without writing it down.
+- [ ] Wire the analog+digital combined status into `device_status`: reuse the existing
+      `device_status_set_environment(value, voltage, status)` seam (fold D0's alarm into
+      the `status` argument — e.g. `DEVICE_STATUS_ERROR` when D0 trips) rather than adding
+      a new field, unless the UI needs to show the raw digital bit independently of the
+      ppm value, in which case follow the existing "one setter per producer" convention
+      (see the `can_rx_count` note in §2) and add an explicit field
+- [ ] Wire the driver into the build per the file list above; `env_sim.c`/`CONFIG_ENV_SIM`
+      stays as the fallback until this replaces it as the real `device_status_set_environment`
+      producer (that swap is a §4 sensor-sampling-thread concern, not part of the driver itself)
+- [ ] Validate standalone with a simple polling sample (log ppm + Rs/Ro + D0 state to the
+      console) before integrating into the main app — much easier to debug curve-fit and
+      wiring mistakes without the UI/CAN/threading stack in the way
 
 ## 4. Threading / concurrency architecture
 
