@@ -314,7 +314,7 @@ the way `env_sim.c` stood in for the gas sensor before §3 — same simulate-the
 - [x] Validate standalone: log `SENSOR_CHAN_ACCEL_X/Y/Z` via `sensor_sample_fetch`/
       `channel_get` to the console before integrating (same "validate before wiring into
       the app" step §3.4 did for MQ-2)
-- [ ] Wire the driver into the build; `tilt_sim.c`/`CONFIG_TILT_SIM` stays as the fallback
+- [x] Wire the driver into the build; `tilt_sim.c`/`CONFIG_TILT_SIM` stays as the fallback
       until this replaces it as the real tilt producer (that swap is a §5
       sensor-sampling-thread concern, not part of the driver wiring itself — mirrors the
       `env_sim`/MQ note in §3.4)
