@@ -16,15 +16,13 @@
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
+/* k_work to update device's uptime */
+
 struct k_work_delayable uptime_work;
 static void device_status_uptime_update(struct k_work *work);
 
-/*
- * Standalone validation poll (ROADMAP.md #3's "validate standalone before
- * integrating into the main app" step) -- not the real sensor-sampling-thread
- * integration from ROADMAP.md #5 yet, just enough to confirm the driver
- * produces sane ppm/alarm values now that Ro is calibrated.
- */
+/* k_work to update environment data */
+
 #if DT_NODE_EXISTS(DT_NODELABEL(mq2))
 static const struct device *mq2_dev = DEVICE_DT_GET(DT_NODELABEL(mq2));
 static struct k_work_delayable mq2_poll_work;
@@ -43,13 +41,43 @@ static void mq2_poll_update(struct k_work *work)
       // Update device_status to be read by screen
       float smoke_f = sensor_value_to_float(&smoke);
       float voltage_f = sensor_value_to_float(&voltage);
-      LOG_INF("smoke = %.2f ppm, voltage = %.3f", smoke_f, voltage_f);
+      LOG_DBG("smoke = %.2f ppm, voltage = %.3f", smoke_f, voltage_f);
       device_status_set_environment(smoke_f, voltage_f, DEVICE_STATUS_OK);
     }
   }
-
   k_work_reschedule(&mq2_poll_work, K_SECONDS(1));
 }
+#endif
+
+/* k_work to update tilt data */
+
+#if DT_NODE_EXISTS(DT_NODELABEL(fxls))
+static const struct device *fxls = DEVICE_DT_GET(DT_NODELABEL(fxls));
+static struct k_work_delayable fxls_poll_work;
+
+static void fxls_poll_update(struct k_work *work)
+{
+  int ret = sensor_sample_fetch(fxls);
+  if (ret != 0) {
+    LOG_ERR("FXLS sample fetch failed: %d", ret);
+  } else {
+    struct sensor_value raw_x, raw_y, raw_z;
+
+    if (sensor_channel_get(fxls, SENSOR_CHAN_ACCEL_X, &raw_x) == 0 &&
+        sensor_channel_get(fxls, SENSOR_CHAN_ACCEL_Y, &raw_y) == 0 &&
+        sensor_channel_get(fxls, SENSOR_CHAN_ACCEL_Z, &raw_z) == 0) {
+      // Convert to g values instead of m/s2
+      float x = sensor_ms2_to_mg(&raw_x) / 1000.0f;
+      float y = sensor_ms2_to_mg(&raw_y) / 1000.0f;
+      float z = sensor_ms2_to_mg(&raw_z) / 1000.0f;
+
+      device_status_set_tilt(x, y, z, DEVICE_STATUS_OK);
+      LOG_DBG("x = %.2f | y = %.2f | z = %.2f", x, y, z);
+    }
+  }
+  k_work_reschedule(&fxls_poll_work, K_MSEC(100));
+}
+
 #endif
 
 int main(void)
@@ -78,8 +106,13 @@ int main(void)
   }
 #endif
 
-#if defined(CONFIG_TILT_SIM)
-  tilt_sim_start();
+#if DT_NODE_EXISTS(DT_NODELABEL(fxls))
+  if (!device_is_ready(fxls)) {
+    LOG_ERR("FXLS device not ready");
+  } else {
+    k_work_init_delayable(&fxls_poll_work, fxls_poll_update);
+    k_work_reschedule(&fxls_poll_work, K_MSEC(100));
+  }
 #endif
 
   return 0;
