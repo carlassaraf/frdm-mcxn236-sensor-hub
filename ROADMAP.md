@@ -304,14 +304,14 @@ work §3.2 did for the MQ analog/digital pins.
 Today `CONFIG_TILT_SIM=y` / `tilt_sim.c` (`src/device_status/`) stands in for this exactly
 the way `env_sim.c` stood in for the gas sensor before §3 — same simulate-then-swap shape.
 
-- [ ] Confirm how the on-board FXLS8974 actually attaches to `i3c1`: native I3C target,
+- [x] Confirm how the on-board FXLS8974 actually attaches to `i3c1`: native I3C target,
       or a legacy-I2C device hosted on the I3C controller (Zephyr's I3C subsystem has a
       shim for that). Correct the Hardware section's "(I3C, upstream Zephyr driver)" line
       once this is settled — it may need to read "I2C-on-I3C" or similar
-- [ ] Add the devicetree child node under `i3c1` (or wherever the above lands it) in the
+- [x] Add the devicetree child node under `i3c1` (or wherever the above lands it) in the
       app overlay, plus any Kconfig (`CONFIG_FXLS8974=y`) — driver itself is upstream,
       no new binding/source needed unless the bus turns out to be genuinely unsupported
-- [ ] Validate standalone: log `SENSOR_CHAN_ACCEL_X/Y/Z` via `sensor_sample_fetch`/
+- [x] Validate standalone: log `SENSOR_CHAN_ACCEL_X/Y/Z` via `sensor_sample_fetch`/
       `channel_get` to the console before integrating (same "validate before wiring into
       the app" step §3.4 did for MQ-2)
 - [ ] Wire the driver into the build; `tilt_sim.c`/`CONFIG_TILT_SIM` stays as the fallback
