@@ -27,6 +27,16 @@ static void device_status_uptime_update(struct k_work *work);
 static const struct device *mq2_dev = DEVICE_DT_GET(DT_NODELABEL(mq2));
 static struct k_work_delayable mq2_poll_work;
 
+#define MQ2_WORK_STACK_SIZE  512
+#define MQ2_WORK_PRIORITY  1
+
+K_THREAD_STACK_DEFINE(mq2_stack, MQ2_WORK_STACK_SIZE);
+
+static struct k_work_q mq2_work_queue;
+static const struct k_work_queue_config mq2_work_queue_cfg = {
+  .name = "mq2 work queue",
+};
+
 static void mq2_poll_update(struct k_work *work)
 {
   int ret = sensor_sample_fetch(mq2_dev);
@@ -65,6 +75,16 @@ static void mq2_poll_update(struct k_work *work)
 #if DT_NODE_EXISTS(DT_NODELABEL(fxls))
 static const struct device *fxls = DEVICE_DT_GET(DT_NODELABEL(fxls));
 static struct k_work_delayable fxls_poll_work;
+
+#define FXLS_WORK_STACK_SIZE  512
+#define FXLS_WORK_PRIORITY  1
+
+K_THREAD_STACK_DEFINE(fxls_stack, FXLS_WORK_STACK_SIZE);
+
+static struct k_work_q fxls_work_queue;
+static const struct k_work_queue_config fxls_work_queue_cfg = {
+  .name = "fxls work queue",
+};
 
 static void fxls_poll_update(struct k_work *work)
 {
@@ -116,8 +136,14 @@ int main(void)
     LOG_ERR("MQ-2 device not ready");
   } else {
     device_status_set_environment_identity(mq2_dev->name, DT_IO_CHANNELS_INPUT(DT_NODELABEL(mq2)));
+    k_work_queue_init(&mq2_work_queue);
+    k_work_queue_start(
+      &mq2_work_queue, mq2_stack,
+      K_THREAD_STACK_SIZEOF(mq2_stack), MQ2_WORK_PRIORITY,
+      &mq2_work_queue_cfg
+    );
     k_work_init_delayable(&mq2_poll_work, mq2_poll_update);
-    k_work_reschedule(&mq2_poll_work, K_SECONDS(1));
+    k_work_reschedule_for_queue(&mq2_work_queue, &mq2_poll_work, K_SECONDS(1));
   }
 #endif
 
@@ -125,8 +151,14 @@ int main(void)
   if (!device_is_ready(fxls)) {
     LOG_ERR("FXLS device not ready");
   } else {
+    k_work_queue_init(&fxls_work_queue);
+    k_work_queue_start(
+      &fxls_work_queue, fxls_stack,
+      K_THREAD_STACK_SIZEOF(fxls_stack), FXLS_WORK_PRIORITY,
+      &fxls_work_queue_cfg
+    );
     k_work_init_delayable(&fxls_poll_work, fxls_poll_update);
-    k_work_reschedule(&fxls_poll_work, K_MSEC(100));
+    k_work_reschedule_for_queue(&fxls_work_queue, &fxls_poll_work, K_MSEC(100));
   }
 #endif
 
