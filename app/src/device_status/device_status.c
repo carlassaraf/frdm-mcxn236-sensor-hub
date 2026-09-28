@@ -21,7 +21,7 @@ static void notify_changed(uint32_t bits)
 void device_status_set_uptime(uint32_t uptime_s)
 {
   k_mutex_lock(&s_mutex, K_FOREVER);
-  s_status.uptime_s = uptime_s;
+  s_status.device.uptime_s = uptime_s;
   k_mutex_unlock(&s_mutex);
   notify_changed(DEVICE_STATUS_EVT_UPTIME);
 }
@@ -29,7 +29,7 @@ void device_status_set_uptime(uint32_t uptime_s)
 void device_status_set_overall_status(device_status_t status)
 {
   k_mutex_lock(&s_mutex, K_FOREVER);
-  s_status.overall_status = status;
+  s_status.device.overall_status = status;
   k_mutex_unlock(&s_mutex);
   notify_changed(DEVICE_STATUS_EVT_OVERALL);
 }
@@ -37,10 +37,10 @@ void device_status_set_overall_status(device_status_t status)
 void device_status_set_tilt(float x, float y, float z, device_status_t status)
 {
   k_mutex_lock(&s_mutex, K_FOREVER);
-  s_status.tilt_x = x;
-  s_status.tilt_y = y;
-  s_status.tilt_z = z;
-  s_status.tilt_status = status;
+  s_status.tilt.x = x;
+  s_status.tilt.y = y;
+  s_status.tilt.z = z;
+  s_status.tilt.status = status;
   k_mutex_unlock(&s_mutex);
   notify_changed(DEVICE_STATUS_EVT_TILT);
 }
@@ -52,8 +52,8 @@ void device_status_set_environment_identity(const char *sensor_name, uint8_t cha
   name[0] = toupper(name[0]); name[1] = toupper(name[1]);
 
   k_mutex_lock(&s_mutex, K_FOREVER);
-  s_status.env_sensor_name = name;
-  s_status.env_channel = channel;
+  s_status.environment.sensor_name = name;
+  s_status.environment.channel = channel;
   k_mutex_unlock(&s_mutex);
   notify_changed(DEVICE_STATUS_EVT_ENVIRONMENT);
 }
@@ -61,9 +61,9 @@ void device_status_set_environment_identity(const char *sensor_name, uint8_t cha
 void device_status_set_environment(float value, float voltage, device_status_t status)
 {
   k_mutex_lock(&s_mutex, K_FOREVER);
-  s_status.env_value = value;
-  s_status.env_voltage = voltage;
-  s_status.env_status = status;
+  s_status.environment.value = value;
+  s_status.environment.voltage = voltage;
+  s_status.environment.status = status;
   k_mutex_unlock(&s_mutex);
   notify_changed(DEVICE_STATUS_EVT_ENVIRONMENT);
 }
@@ -72,11 +72,11 @@ void device_status_set_can(bool loopback_ok, uint32_t frame_id, uint32_t tx_inte
                             uint32_t tx_count, device_status_t status)
 {
   k_mutex_lock(&s_mutex, K_FOREVER);
-  s_status.can_loopback_ok = loopback_ok;
-  s_status.can_frame_id = frame_id;
-  s_status.can_tx_interval_ms = tx_interval_ms;
-  s_status.can_tx_count = tx_count;
-  s_status.can_status = status;
+  s_status.can.loopback_ok = loopback_ok;
+  s_status.can.frame_id = frame_id;
+  s_status.can.tx_interval_ms = tx_interval_ms;
+  s_status.can.tx_count = tx_count;
+  s_status.can.status = status;
   k_mutex_unlock(&s_mutex);
   notify_changed(DEVICE_STATUS_EVT_CAN);
 }
@@ -84,7 +84,7 @@ void device_status_set_can(bool loopback_ok, uint32_t frame_id, uint32_t tx_inte
 void device_status_set_active_screen(screen_id_t screen)
 {
   k_mutex_lock(&s_mutex, K_FOREVER);
-  s_status.active_screen = screen;
+  s_status.device.active_screen = screen;
   k_mutex_unlock(&s_mutex);
   // Diagnostic-only field: no producer waits on it, no need to wake anyone.
 }
@@ -92,7 +92,7 @@ void device_status_set_active_screen(screen_id_t screen)
 void device_status_set_display_sleeping(bool is_sleeping)
 {
   k_mutex_lock(&s_mutex, K_FOREVER);
-  s_status.display_sleeping = is_sleeping;
+  s_status.device.display_sleeping = is_sleeping;
   k_mutex_unlock(&s_mutex);
   notify_changed(DEVICE_STATUS_EVT_DISPLAY);
 }
@@ -101,6 +101,34 @@ void device_status_get(struct device_status *out)
 {
   k_mutex_lock(&s_mutex, K_FOREVER);
   *out = s_status;
+  k_mutex_unlock(&s_mutex);
+}
+
+void device_status_get_device(struct device_status_device *out)
+{
+  k_mutex_lock(&s_mutex, K_FOREVER);
+  *out = s_status.device;
+  k_mutex_unlock(&s_mutex);
+}
+
+void device_status_get_tilt(struct device_status_tilt *out)
+{
+  k_mutex_lock(&s_mutex, K_FOREVER);
+  *out = s_status.tilt;
+  k_mutex_unlock(&s_mutex);
+}
+
+void device_status_get_environment(struct device_status_environment *out)
+{
+  k_mutex_lock(&s_mutex, K_FOREVER);
+  *out = s_status.environment;
+  k_mutex_unlock(&s_mutex);
+}
+
+void device_status_get_can(struct device_status_can *out)
+{
+  k_mutex_lock(&s_mutex, K_FOREVER);
+  *out = s_status.can;
   k_mutex_unlock(&s_mutex);
 }
 

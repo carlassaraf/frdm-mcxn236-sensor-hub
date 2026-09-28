@@ -34,31 +34,44 @@ typedef enum {
   SCREEN_COUNT
 } screen_id_t;
 
-// UI-facing derived state. Raw sensor readings live in sensor_snapshot instead.
-struct device_status {
+struct device_status_device {
   uint32_t uptime_s;
   device_status_t overall_status;
-
-  float tilt_x;
-  float tilt_y;
-  float tilt_z;
-  device_status_t tilt_status;
-
-  float env_value;
-  const char *env_sensor_name;
-  uint8_t env_channel;
-  float env_voltage;
-  device_status_t env_status;
-
-  bool can_loopback_ok;
-  uint32_t can_frame_id;
-  uint32_t can_tx_interval_ms;
-  uint32_t can_tx_count;
-  device_status_t can_status;
-
   // Written by the UI Manager only; diagnostic, not read by any producer.
   screen_id_t active_screen;
   bool display_sleeping;
+};
+
+struct device_status_tilt {
+  float x;
+  float y;
+  float z;
+  device_status_t status;
+};
+
+struct device_status_environment {
+  float value;
+  const char *sensor_name;
+  uint8_t channel;
+  float voltage;
+  device_status_t status;
+};
+
+struct device_status_can {
+  bool loopback_ok;
+  uint32_t frame_id;
+  uint32_t tx_interval_ms;
+  uint32_t tx_count;
+  device_status_t status;
+};
+
+// Latest readings and derived status from every producer, grouped by section.
+// Sections are embedded by value: still one struct, one mutex, one copy.
+struct device_status {
+  struct device_status_device device;
+  struct device_status_tilt tilt;
+  struct device_status_environment environment;
+  struct device_status_can can;
 };
 
 void device_status_init(void);
@@ -79,6 +92,16 @@ void device_status_set_display_sleeping(bool is_sleeping);
  * @param out Pointer to copy the values
  */
 void device_status_get(struct device_status *out);
+
+/**
+ * @brief Copies a single section under the mutex. Prefer these over
+ * device_status_get() when a consumer only needs one section.
+ * @param out Pointer to copy the values
+ */
+void device_status_get_device(struct device_status_device *out);
+void device_status_get_tilt(struct device_status_tilt *out);
+void device_status_get_environment(struct device_status_environment *out);
+void device_status_get_can(struct device_status_can *out);
 
 /** 
  * @brief Blocks until the event bit has been set
