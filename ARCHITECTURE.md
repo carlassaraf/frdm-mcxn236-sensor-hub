@@ -97,12 +97,13 @@ An adapter's `apply(state)` function only ever runs while its screen is the acti
 
 Owns sampling of the accelerometer + the custom gas sensor (ROADMAP §3/§4/§5). Computes
 *derived* UI-relevant state (status enum: OK/WARN/ERROR against thresholds; not raw
-ADC counts) once, and pushes it into `device_status` via the UI Manager's setters. Also
-the natural place to maintain the raw `sensor_snapshot` the CAN service reads from.
+ADC counts) once, and pushes it into `device_status` via the UI Manager's setters. The
+same `device_status` fields are what the CAN service packs: there is no separate raw
+snapshot.
 
 ### 4. CAN Service
 
-Owns the FlexCAN TX/RX (ROADMAP §6): reads the sensor snapshot, packs/sends telemetry
+Owns the FlexCAN TX/RX (ROADMAP §6): reads `device_status` via `device_status_get()`, packs/sends telemetry
 frames, and pushes CAN-relevant display fields (loopback status, frame id, tx interval,
 tx/rx counters) into `device_status`.
 
@@ -116,21 +117,26 @@ another producer that calls the same navigation API.
 
 ## The shared `device_status`
 
-One flat struct, one mutex, everyone-reads-everyone-writes-their-own-fields:
+One struct, one mutex, everyone-reads-everyone-writes-their-own-fields. Fields are
+grouped into per-section sub-structs, embedded by value:
 
-| Field group | Written by | Read by | Screen(s) |
+| Section | Fields | Written by | Screen(s) |
 |---|---|---|---|
-| `uptime_s` | main/sensor service | UI Manager | Overview |
-| `overall_status`, `mq_status`, `can_status`, `tilt_status` | Sensor/CAN services | UI Manager | Overview |
-| `tilt_x/y/z` | Sensor service | UI Manager | Tilt |
-| `env_value`, `env_unit`, `env_sensor_name`, `env_channel`, `env_voltage`, `env_status` | Sensor service | UI Manager | Environment |
-| `can_loopback_ok`, `can_frame_id`, `can_tx_interval_ms`, `can_tx_count` | CAN service | UI Manager | Can |
-| `active_screen` | UI Manager only | (diagnostic) | — |
+| `device` | `uptime_s`, `overall_status` | main (uptime), `device_status.c` (overall, derived) | Overview |
+| `device` | `active_screen`, `display_sleeping` | UI Manager only | — / sleep overlay |
+| `tilt` | `x`, `y`, `z`, `status` | Sensor service | Tilt, Overview (status) |
+| `environment` | `value`, `sensor_name`, `channel`, `voltage`, `status` | Sensor service | Environment, Overview (status) |
+| `can` | `loopback_ok`, `frame_id`, `tx_interval_ms`, `tx_count`, `status` | CAN service | Can, Overview (status) |
 
-**Flat, not nested per-screen** — deliberate: since there's a single mutex over the
-whole struct, nesting into per-screen sub-structs buys no locking granularity, only
-pointer indirection. All producers are low-rate (sensor/CAN ~1–10 Hz, button at human
-speed), so contention is a non-issue regardless of layout.
+**Sections are for readability, not locking**: there's still a single mutex over the
+whole struct and `device_status_get()` still copies all of it. Embedding by value costs
+nothing (no pointers, same layout as a flat struct). All producers are low-rate
+(sensor/CAN ~1–10 Hz, button at human speed), so contention is a non-issue regardless.
+
+**Per-section getters** (`device_status_get_device/_tilt/_environment/_can()`) copy just
+one section under the same mutex; a consumer that only needs one section uses those, so
+it depends only on the fields it reads. `device_status_get()` stays for consumers that
+span sections and need them mutually consistent (the Overview screen).
 
 **Setters are fine-grained**, one per producer's data (`set_tilt`, `set_environment`,
 `set_can`, ...), not a single "write the whole struct" call — so a caller can only ever

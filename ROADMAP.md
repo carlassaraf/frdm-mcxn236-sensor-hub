@@ -20,8 +20,8 @@ built on the NXP FRDM-MCXN236 (Zephyr RTOS).
 
 ## Architecture summary
 
-- Sensor-sampling thread → writes a mutex-protected `sensor_snapshot` struct (raw readings, consumed by CAN)
-- CAN TX thread → reads snapshot under mutex, sends periodic CAN-FD telemetry frames (loopback)
+- Sensor sampling → writes readings + derived status into the mutex-protected `device_status` struct
+- CAN TX thread → reads `device_status` under its mutex, sends periodic CAN-FD telemetry frames (loopback)
 - Input service: GPIO interrupt (not polling) → `k_work` debounce → requests a screen change
 - A dedicated **UI Manager** owns a dedicated LVGL thread and is the *only* code that ever touches
   an `lv_obj_t*` — no built-in `lvgl_lock()`/`lvgl_unlock()` exists in mainline, so this ownership
@@ -322,24 +322,51 @@ the way `env_sim.c` stood in for the gas sensor before §3 — same simulate-the
 ## 5. Threading / concurrency architecture
 
 **See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design** (component map, synchronization
-model, screen lifecycle, thread priority rationale). Summary of the concrete build steps:
+model, screen lifecycle, thread priority rationale).
 
-- [ ] Define shared `struct sensor_snapshot` (accel xyz + custom sensor reading), protected by its
-      own `k_mutex` — raw readings, consumed by the CAN service for telemetry packing
-- [ ] Define the shared `device_status` struct (UI-facing *derived* fields: status enums, tilt
-      xyz, env value/unit/status, CAN counters) per ARCHITECTURE.md, with its own `k_mutex` +
-      coalescing binary semaphore — separate from `sensor_snapshot`, owned by the UI Manager
-- [ ] Sensor-sampling thread: periodic `k_thread` polling the FXLS8974 accelerometer + the custom
-      sensor; writes `sensor_snapshot` under its mutex, computes derived status once, and pushes
-      it into `device_status` via the UI Manager's setters
-- [ ] CAN TX thread: reads `sensor_snapshot` under its mutex, packs into a CAN-FD frame, sends
-      periodically, and pushes CAN status/counters into `device_status`
-- [ ] Input service: button GPIO interrupt (not polling) → `k_work` debounce → requests a screen
-      change through the UI Manager's navigation API (atomic "requested screen" + wake semaphore)
-      — never touches `lv_obj_t*` or `device_status` directly
-- [ ] UI Manager thread reads `device_status` under its mutex to refresh the active screen's widgets
-- [ ] Keep every mutex-held critical section short — no I2C/CAN/display-driver calls while holding
-      either lock
+> **Reviewed 2026-09-28:** most of this section landed during §2–§4, and the separate
+> `sensor_snapshot` it originally called for was dropped. The idea was a second
+> mutex-protected struct holding raw readings for CAN, apart from the UI-facing
+> `device_status`. But `device_status` already carries exactly what CAN would send (tilt
+> x/y/z in g, gas ppm + voltage), so a second copy would only mean every producer writes
+> twice. The CAN service reads `device_status_get()` instead (§6). Revisit only if CAN ever
+> needs data the UI doesn't: raw ADC counts, a different sample rate, or a history buffer.
+
+Already done:
+
+- [x] Shared `device_status` struct (sections: `device`, `tilt`, `environment`, `can`) with
+      its own `k_mutex` + coalescing `k_event` wake, fine-grained per-producer setters
+- [x] UI Manager thread reads `device_status` under its mutex to refresh the active screen
+- [x] Input service: done through Zephyr's input subsystem (`gpio-keys` + an
+      `INPUT_CALLBACK_DEFINE` handler in `ui_manager.c`) instead of a hand-rolled GPIO ISR +
+      `k_work` debounce. `gpio-keys` already debounces, and the handler only sets the pending
+      screen / sleep flag, never touching `lv_obj_t*`
+- [x] Mutex-held critical sections stay short: every lock in `device_status.c` covers only a
+      plain field copy, no bus/display calls
+
+Remaining:
+
+- [x] Derive status in the producers instead of hardcoding it. Both `mq2_poll_update()` and
+      `fxls_poll_update()` in `main.cpp` always pass `DEVICE_STATUS_OK`:
+  - [x] Environment: `WARN` while the MQ warm-up window is still running (`sample_fetch`
+        returning `-EAGAIN`, §3.4), `ERROR` on fetch/channel failure, and move the ppm danger
+        threshold currently hardcoded in `scr_environment.c` (`> 150`) into the producer.
+        The adapter should only map status → text/color
+  - [x] Tilt: `ERROR` on fetch/channel failure (today a failed read just logs and leaves the
+        last good value showing as `OK`)
+  - [x] `overall_status`: nothing calls `device_status_set_overall_status()` yet. Compute it
+        from the `tilt`/`environment`/`can` statuses (any `ERROR` → `ERROR`, any `WARN` →
+        `WARN`, else `OK`). Simplest is inside `device_status.c` whenever a section status
+        changes, so no producer has to know about the others
+- [x] Move sensor polling off the system workqueue onto a dedicated `k_work_q` with an
+      explicit priority above the LVGL thread, per ARCHITECTURE.md's threading model. The
+      existing `k_work_delayable` handlers move over unchanged; only the queue they're
+      submitted to changes. Size its stack by measurement (`CONFIG_THREAD_ANALYZER`)
+- [x] Retire the simulators. The real drivers are already the only producers (nothing calls
+      `tilt_sim_start()`/`env_sim_start()` any more), but `CONFIG_TILT_SIM`/`CONFIG_ENV_SIM`
+      still `default y` in `Kconfig.device_status`, so both are compiled in as dead code and
+      `main.cpp` still includes their headers. Flip them to `default n` (keep the sources as a
+      no-hardware fallback) and drop the includes
 
 ## 6. CAN (FlexCAN, loopback only)
 
@@ -383,7 +410,7 @@ goals than the language-boundary exercise is, so land those first and layer C++ 
 once the C core is stable rather than migrating mid-flight.
 
 - [ ] Enable `CONFIG_CPP=y`, `CONFIG_CPLUSPLUS=y`, `CONFIG_STD_CPP17=y`, `CONFIG_LIB_CPLUSPLUS=y`
-- [ ] Wrap the sensor snapshot in a small C++ class (RAII lock guard around the `k_mutex`)
+- [ ] Wrap `device_status` access in a small C++ class (RAII lock guard around the `k_mutex`)
 - [ ] Wrap CAN telemetry packing/parsing in a C++ class
 - [ ] Keep a clean `extern "C"` boundary between LVGL/driver C APIs and the C++ app layer
 

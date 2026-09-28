@@ -5,45 +5,47 @@
 
 static void scrOverview_status_helper(device_status_t status, lv_obj_t *lbl, const char *ok_text, const char *wrn_text, const char *err_text, const char *unkn_text);
 
-static void scrOverview_postinit(void)
-{
-  lv_label_set_text_fmt(ui_overviewVersion, "FRDM-MCXN236 - v%s (%s)", APP_VERSION_STRING, STRINGIFY(APP_BUILD_VERSION));
-}
+// Last values drawn on the widgets. File scope so postinit can force a full
+// redraw after the screen is recreated -- the widgets start with SquareLine's
+// placeholder text, so whatever was cached from the previous visit is stale.
+static struct device_status s_drawn;
 
-static void scrOverview_step(void)
+static void scrOverview_draw(bool force)
 {
-  static uint32_t uptime_s = 0;
-  static device_status_t env_status;
-  static device_status_t can_status;
-  static device_status_t tilt_status;
-  static device_status_t overall_status;
-
   struct device_status status;
   device_status_get(&status);
-  
-  if(uptime_s != status.uptime_s) {
-    // Avoid updating label if uptime hasn't changed
-    uptime_s = status.uptime_s;
+
+  if(force || s_drawn.device.uptime_s != status.device.uptime_s) {
+    uint32_t uptime_s = status.device.uptime_s;
     lv_label_set_text_fmt(ui_overviewUptime, "%02d:%02d:%02d", uptime_s / 3600, (uptime_s / 60) % 60, uptime_s % 60);
   }
 
   // Update status indicators
-  if(env_status != status.env_status) {
-    env_status = status.env_status;
-    scrOverview_status_helper(status.env_status, ui_overviewMqStatus, "available", "faulty", NULL, NULL);
+  if(force || s_drawn.environment.status != status.environment.status) {
+    scrOverview_status_helper(status.environment.status, ui_overviewMqStatus, "available", "degraded", "faulty", "unknown");
   }
-  if(can_status != status.can_status) {
-    can_status = status.can_status;
-    scrOverview_status_helper(status.can_status, ui_overviewCanStatus, "available", "faulty", NULL, NULL);
+  if(force || s_drawn.can.status != status.can.status) {
+    scrOverview_status_helper(status.can.status, ui_overviewCanStatus, "available", "degraded", "faulty", "unknown");
   }
-  if(tilt_status != status.tilt_status) {
-    tilt_status = status.tilt_status;
-    scrOverview_status_helper(status.tilt_status, ui_overviewTiltStatus, "available", "faulty", NULL, NULL);
+  if(force || s_drawn.tilt.status != status.tilt.status) {
+    scrOverview_status_helper(status.tilt.status, ui_overviewTiltStatus, "available", "degraded", "faulty", "unknown");
   }
-  if(overall_status != status.overall_status) {
-    overall_status = status.overall_status;
-    scrOverview_status_helper(status.overall_status, ui_overviewStatus, "NORMAL", "FAULT", "DEGRADED", NULL);
+  if(force || s_drawn.device.overall_status != status.device.overall_status) {
+    scrOverview_status_helper(status.device.overall_status, ui_overviewStatus, "NORMAL", "DEGRADED", "FAULT", "STARTING");
   }
+
+  s_drawn = status;
+}
+
+static void scrOverview_postinit(void)
+{
+  lv_label_set_text_fmt(ui_overviewVersion, "FRDM-MCXN236 - v%s (%s)", APP_VERSION_STRING, STRINGIFY(APP_BUILD_VERSION));
+  scrOverview_draw(true);
+}
+
+static void scrOverview_step(void)
+{
+  scrOverview_draw(false);
 }
 
 static void scrOverview_status_helper(device_status_t status, lv_obj_t *lbl, const char *ok_text, const char *wrn_text, const char *err_text, const char *unkn_text)

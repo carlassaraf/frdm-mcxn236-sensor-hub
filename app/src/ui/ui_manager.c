@@ -96,8 +96,8 @@ static void lvgl_thread(void *arg1, void *arg2, void *arg3)
     // Get current screen
     const screen_ops_t *curr = screens[s_current_screen];
     // Get the current sleep state
-    struct device_status dev;
-    device_status_get(&dev);
+    struct device_status_device dev;
+    device_status_get_device(&dev);
     // Sync the sleep overlay with the latest SW2 request
     if (dev.display_sleeping != overlay_visible) {
       if (dev.display_sleeping) {
@@ -184,8 +184,8 @@ static void ui_manager_input_cb(struct input_event *evt, void *user_data)
     break;
   }
   case INPUT_KEY_WAKEUP:
-    struct device_status dev;
-    device_status_get(&dev);
+    struct device_status_device dev;
+    device_status_get_device(&dev);
     bool sleeping = !dev.display_sleeping;
     device_status_set_display_sleeping(sleeping);
     LOG_INF("Display %s", sleeping ? "sleeping" : "awake");

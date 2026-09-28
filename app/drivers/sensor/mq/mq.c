@@ -201,18 +201,24 @@ static DEVICE_API(sensor, mq_driver_api) = {
  */
 #undef DT_DRV_COMPAT
 #define DT_DRV_COMPAT winsen_mq2
+#if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
 /* Smoke line -- points (0.042, 5000ppm), (0.026, 10000ppm) */
 static const float mq2_curve[] = {-1.445f, 1.709f};
 DT_INST_FOREACH_STATUS_OKAY_VARGS(MQ_INIT, DT_DRV_COMPAT, SENSOR_CHAN_MQ_SMOKE, mq2_curve)
+#endif
 
 #undef DT_DRV_COMPAT
 #define DT_DRV_COMPAT winsen_mq3
+#if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
 /* Alcohol (C2H5OH) line -- points (0.085, 100ppm), (0.0475, 200ppm) */
 static const float mq3_curve[] = {-1.191f, 0.725f};
 DT_INST_FOREACH_STATUS_OKAY_VARGS(MQ_INIT, DT_DRV_COMPAT, SENSOR_CHAN_MQ_ALCOHOL, mq3_curve)
+#endif
 
 #undef DT_DRV_COMPAT
 #define DT_DRV_COMPAT winsen_mq7
+#if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
 /* CO line -- points (0.065, 100ppm), (0.02, 1000ppm) */
 static const float mq7_curve[] = {-1.954f, -0.319f};
 DT_INST_FOREACH_STATUS_OKAY_VARGS(MQ_INIT, DT_DRV_COMPAT, SENSOR_CHAN_MQ_CO, mq7_curve)
+#endif

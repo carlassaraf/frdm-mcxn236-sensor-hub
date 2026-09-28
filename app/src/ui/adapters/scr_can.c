@@ -4,41 +4,46 @@
 
 static void scrCan_hero_helper(bool loopback_ok, device_status_t status);
 
-static void scrCan_step(void)
+// Last values drawn on the widgets. File scope so postinit can force a full
+// redraw after the screen is recreated (see scr_overview.c).
+static struct device_status_can s_drawn;
+
+static void scrCan_draw(bool force)
 {
-  static uint32_t frame_id = 0;
-  static uint32_t tx_interval_ms = 0;
-  static uint32_t tx_count = 0;
-  static bool loopback_ok;
-  static device_status_t can_status;
+  struct device_status_can can;
+  device_status_get_can(&can);
 
-  struct device_status status;
-  device_status_get(&status);
-
-  if(can_status != status.can_status || loopback_ok != status.can_loopback_ok) {
-    can_status = status.can_status;
-    loopback_ok = status.can_loopback_ok;
-    scrCan_hero_helper(loopback_ok, can_status);
+  if(force || s_drawn.status != can.status || s_drawn.loopback_ok != can.loopback_ok) {
+    scrCan_hero_helper(can.loopback_ok, can.status);
   }
 
-  if(frame_id != status.can_frame_id) {
-    frame_id = status.can_frame_id;
-    lv_label_set_text_fmt(ui_canFrameV, "0x%04X", frame_id);
+  if(force || s_drawn.frame_id != can.frame_id) {
+    lv_label_set_text_fmt(ui_canFrameV, "0x%04X", can.frame_id);
   }
 
-  if(tx_interval_ms != status.can_tx_interval_ms) {
-    tx_interval_ms = status.can_tx_interval_ms;
-    lv_label_set_text_fmt(ui_canTxIntervalV, "%u ms", tx_interval_ms);
+  if(force || s_drawn.tx_interval_ms != can.tx_interval_ms) {
+    lv_label_set_text_fmt(ui_canTxIntervalV, "%u ms", can.tx_interval_ms);
   }
 
-  if(tx_count != status.can_tx_count) {
-    tx_count = status.can_tx_count;
+  if(force || s_drawn.tx_count != can.tx_count) {
     // Loopback mode hands every TX frame straight back as RX, so TX == RX is
     // exactly what the loopback self-test is proving right now. Swap the
     // second value for a real can_rx_count once an RX filter callback exists
     // for a physical bus (see ROADMAP.md's CAN section).
-    lv_label_set_text_fmt(ui_canCountV, "%u / %u", tx_count, tx_count);
+    lv_label_set_text_fmt(ui_canCountV, "%u / %u", can.tx_count, can.tx_count);
   }
+
+  s_drawn = can;
+}
+
+static void scrCan_postinit(void)
+{
+  scrCan_draw(true);
+}
+
+static void scrCan_step(void)
+{
+  scrCan_draw(false);
 }
 
 static void scrCan_hero_helper(bool loopback_ok, device_status_t status)
@@ -69,4 +74,4 @@ static void scrCan_unload(void)
   _ui_screen_delete(ui_scrCan_screen_destroy);
 }
 
-const screen_ops_t scrCan_ops = { "CAN", scrCan_load, scrCan_unload, NULL, scrCan_step };
+const screen_ops_t scrCan_ops = { "CAN", scrCan_load, scrCan_unload, scrCan_postinit, scrCan_step };

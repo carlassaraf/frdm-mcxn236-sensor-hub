@@ -67,14 +67,14 @@ static void scrTilt_step(void)
   int32_t elapsed_ms = (int32_t)(now_ms - last_update_ms);
   last_update_ms = now_ms;
 
-  struct device_status status;
-  device_status_get(&status);
+  struct device_status_tilt tilt;
+  device_status_get_tilt(&tilt);
 
-  if(status.tilt_status != DEVICE_STATUS_OK) { return; }
+  if(tilt.status != DEVICE_STATUS_OK) { return; }
 
-  tilt_axis_update(&x_state, status.tilt_x, elapsed_ms, ui_axisXbar, ui_axisXv);
-  tilt_axis_update(&y_state, status.tilt_y, elapsed_ms, ui_axisYbar, ui_axisYv);
-  tilt_axis_update(&z_state, status.tilt_z, elapsed_ms, ui_axisZbar, ui_axisZv);
+  tilt_axis_update(&x_state, tilt.x, elapsed_ms, ui_axisXbar, ui_axisXv);
+  tilt_axis_update(&y_state, tilt.y, elapsed_ms, ui_axisYbar, ui_axisYv);
+  tilt_axis_update(&z_state, tilt.z, elapsed_ms, ui_axisZbar, ui_axisZv);
 }
 
 static void scrTilt_load(void)

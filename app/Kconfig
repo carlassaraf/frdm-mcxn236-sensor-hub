@@ -1,4 +1,3 @@
 rsource "src/ui/Kconfig.ui"
-rsource "src/device_status/Kconfig.device_status"
 rsource "drivers/sensor/mq/Kconfig"
 source "Kconfig.zephyr"
