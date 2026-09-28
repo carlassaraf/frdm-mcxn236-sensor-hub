@@ -12,27 +12,27 @@ static void scrCan_step(void)
   static bool loopback_ok;
   static device_status_t can_status;
 
-  struct device_status status;
-  device_status_get(&status);
+  struct device_status_can can;
+  device_status_get_can(&can);
 
-  if(can_status != status.can_status || loopback_ok != status.can_loopback_ok) {
-    can_status = status.can_status;
-    loopback_ok = status.can_loopback_ok;
+  if(can_status != can.status || loopback_ok != can.loopback_ok) {
+    can_status = can.status;
+    loopback_ok = can.loopback_ok;
     scrCan_hero_helper(loopback_ok, can_status);
   }
 
-  if(frame_id != status.can_frame_id) {
-    frame_id = status.can_frame_id;
+  if(frame_id != can.frame_id) {
+    frame_id = can.frame_id;
     lv_label_set_text_fmt(ui_canFrameV, "0x%04X", frame_id);
   }
 
-  if(tx_interval_ms != status.can_tx_interval_ms) {
-    tx_interval_ms = status.can_tx_interval_ms;
+  if(tx_interval_ms != can.tx_interval_ms) {
+    tx_interval_ms = can.tx_interval_ms;
     lv_label_set_text_fmt(ui_canTxIntervalV, "%u ms", tx_interval_ms);
   }
 
-  if(tx_count != status.can_tx_count) {
-    tx_count = status.can_tx_count;
+  if(tx_count != can.tx_count) {
+    tx_count = can.tx_count;
     // Loopback mode hands every TX frame straight back as RX, so TX == RX is
     // exactly what the loopback self-test is proving right now. Swap the
     // second value for a real can_rx_count once an RX filter callback exists

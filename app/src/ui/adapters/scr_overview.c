@@ -21,28 +21,28 @@ static void scrOverview_step(void)
   struct device_status status;
   device_status_get(&status);
   
-  if(uptime_s != status.uptime_s) {
+  if(uptime_s != status.device.uptime_s) {
     // Avoid updating label if uptime hasn't changed
-    uptime_s = status.uptime_s;
+    uptime_s = status.device.uptime_s;
     lv_label_set_text_fmt(ui_overviewUptime, "%02d:%02d:%02d", uptime_s / 3600, (uptime_s / 60) % 60, uptime_s % 60);
   }
 
   // Update status indicators
-  if(env_status != status.env_status) {
-    env_status = status.env_status;
-    scrOverview_status_helper(status.env_status, ui_overviewMqStatus, "available", "faulty", NULL, NULL);
+  if(env_status != status.environment.status) {
+    env_status = status.environment.status;
+    scrOverview_status_helper(status.environment.status, ui_overviewMqStatus, "available", "faulty", NULL, NULL);
   }
-  if(can_status != status.can_status) {
-    can_status = status.can_status;
-    scrOverview_status_helper(status.can_status, ui_overviewCanStatus, "available", "faulty", NULL, NULL);
+  if(can_status != status.can.status) {
+    can_status = status.can.status;
+    scrOverview_status_helper(status.can.status, ui_overviewCanStatus, "available", "faulty", NULL, NULL);
   }
-  if(tilt_status != status.tilt_status) {
-    tilt_status = status.tilt_status;
-    scrOverview_status_helper(status.tilt_status, ui_overviewTiltStatus, "available", "faulty", NULL, NULL);
+  if(tilt_status != status.tilt.status) {
+    tilt_status = status.tilt.status;
+    scrOverview_status_helper(status.tilt.status, ui_overviewTiltStatus, "available", "faulty", NULL, NULL);
   }
-  if(overall_status != status.overall_status) {
-    overall_status = status.overall_status;
-    scrOverview_status_helper(status.overall_status, ui_overviewStatus, "NORMAL", "FAULT", "DEGRADED", NULL);
+  if(overall_status != status.device.overall_status) {
+    overall_status = status.device.overall_status;
+    scrOverview_status_helper(status.device.overall_status, ui_overviewStatus, "NORMAL", "FAULT", "DEGRADED", NULL);
   }
 }
 
