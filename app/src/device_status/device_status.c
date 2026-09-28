@@ -18,6 +18,24 @@ static void notify_changed(uint32_t bits)
   k_event_post(&s_changed, bits);
 }
 
+static void update_overall_status(void)
+{
+  // No lock since this is called within a mutex lock
+  const device_status_t sections[] = {
+    s_status.tilt.status, s_status.environment.status, s_status.can.status,
+  };
+  // Worst status among sections that have reported; UNKNOWN only if none have.
+  // Relies on the enum order UNKNOWN < OK < WARN < ERROR.
+  device_status_t overall = DEVICE_STATUS_UNKNOWN;
+  for (size_t i = 0; i < ARRAY_SIZE(sections); i++) {
+    if (sections[i] > overall) {
+      overall = sections[i];
+    }
+  }
+  s_status.device.overall_status = overall;
+  notify_changed(DEVICE_STATUS_EVT_OVERALL);
+}
+
 void device_status_set_uptime(uint32_t uptime_s)
 {
   k_mutex_lock(&s_mutex, K_FOREVER);
@@ -26,21 +44,19 @@ void device_status_set_uptime(uint32_t uptime_s)
   notify_changed(DEVICE_STATUS_EVT_UPTIME);
 }
 
-void device_status_set_overall_status(device_status_t status)
-{
-  k_mutex_lock(&s_mutex, K_FOREVER);
-  s_status.device.overall_status = status;
-  k_mutex_unlock(&s_mutex);
-  notify_changed(DEVICE_STATUS_EVT_OVERALL);
-}
-
 void device_status_set_tilt(float x, float y, float z, device_status_t status)
 {
   k_mutex_lock(&s_mutex, K_FOREVER);
   s_status.tilt.x = x;
   s_status.tilt.y = y;
   s_status.tilt.z = z;
+
+  device_status_t prev = s_status.tilt.status;
   s_status.tilt.status = status;
+  // Update only if status changed
+  if (prev != status) {
+    update_overall_status();
+  }
   k_mutex_unlock(&s_mutex);
   notify_changed(DEVICE_STATUS_EVT_TILT);
 }
@@ -63,7 +79,13 @@ void device_status_set_environment(float value, float voltage, device_status_t s
   k_mutex_lock(&s_mutex, K_FOREVER);
   s_status.environment.value = value;
   s_status.environment.voltage = voltage;
+
+  device_status_t prev = s_status.environment.status;
   s_status.environment.status = status;
+  // Update only if status changed
+  if (prev != status) {
+    update_overall_status();
+  }
   k_mutex_unlock(&s_mutex);
   notify_changed(DEVICE_STATUS_EVT_ENVIRONMENT);
 }
@@ -76,7 +98,13 @@ void device_status_set_can(bool loopback_ok, uint32_t frame_id, uint32_t tx_inte
   s_status.can.frame_id = frame_id;
   s_status.can.tx_interval_ms = tx_interval_ms;
   s_status.can.tx_count = tx_count;
+
+  device_status_t prev = s_status.can.status;
   s_status.can.status = status;
+  // Update only if status changed
+  if (prev != status) {
+    update_overall_status();
+  }
   k_mutex_unlock(&s_mutex);
   notify_changed(DEVICE_STATUS_EVT_CAN);
 }

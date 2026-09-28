@@ -78,7 +78,6 @@ void device_status_init(void);
 
 // Fine-grained setters: each producer touches only the fields it owns.
 void device_status_set_uptime(uint32_t uptime_s);
-void device_status_set_overall_status(device_status_t status);
 void device_status_set_tilt(float x, float y, float z, device_status_t status);
 void device_status_set_environment_identity(const char *sensor_name, uint8_t channel);
 void device_status_set_environment(float value, float voltage, device_status_t status);
