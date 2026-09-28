@@ -32,6 +32,7 @@ static void mq2_poll_update(struct k_work *work)
   int ret = sensor_sample_fetch(mq2_dev);
   if (ret != 0) {
     LOG_ERR("MQ-2 sample fetch failed: %d", ret);
+    device_status_set_environment(0.0f, 0.0f, DEVICE_STATUS_ERROR);
   } else {
     struct sensor_value smoke;
     struct sensor_value voltage;
@@ -42,7 +43,17 @@ static void mq2_poll_update(struct k_work *work)
       float smoke_f = sensor_value_to_float(&smoke);
       float voltage_f = sensor_value_to_float(&voltage);
       LOG_DBG("smoke = %.2f ppm, voltage = %.3f", smoke_f, voltage_f);
-      device_status_set_environment(smoke_f, voltage_f, DEVICE_STATUS_OK);
+      // Match error code according the level thresholds
+      if (smoke_f < 150.0f) {
+        device_status_set_environment(smoke_f, voltage_f, DEVICE_STATUS_OK);
+      } else if (smoke_f < 300.0f) {
+        device_status_set_environment(smoke_f, voltage_f, DEVICE_STATUS_WARN);
+      } else {
+        device_status_set_environment(smoke_f, voltage_f, DEVICE_STATUS_ERROR);
+      }
+    } else {
+      LOG_ERR("MQ-2 channel_get failed");
+      device_status_set_environment(0.0f, 0.0f, DEVICE_STATUS_ERROR);
     }
   }
   k_work_reschedule(&mq2_poll_work, K_SECONDS(1));
@@ -59,7 +70,8 @@ static void fxls_poll_update(struct k_work *work)
 {
   int ret = sensor_sample_fetch(fxls);
   if (ret != 0) {
-    LOG_ERR("FXLS sample fetch failed: %d", ret);
+    LOG_ERR("FXLS sample_fetch failed: %d", ret);
+    device_status_set_tilt(0.0f, 0.0f, 0.0f, DEVICE_STATUS_ERROR);
   } else {
     struct sensor_value raw_x, raw_y, raw_z;
 
@@ -73,6 +85,9 @@ static void fxls_poll_update(struct k_work *work)
 
       device_status_set_tilt(x, y, z, DEVICE_STATUS_OK);
       LOG_DBG("x = %.2f | y = %.2f | z = %.2f", x, y, z);
+    } else {
+      LOG_ERR("FXLS channel_get failed");
+      device_status_set_tilt(0.0f, 0.0f, 0.0f, DEVICE_STATUS_ERROR);
     }
   }
   k_work_reschedule(&fxls_poll_work, K_MSEC(100));
