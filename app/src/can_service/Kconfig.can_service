@@ -1,0 +1,11 @@
+config CAN_SERVICE_TX_INTERVAL_MS
+  int "Period between telemetry frame bursts, in milliseconds"
+  default 500
+
+config CAN_SERVICE_STACK_SIZE
+  int "Size of the stack dedicated for the CAN work queue"
+  default 1024
+
+config CAN_SERVICE_PRIORITY
+  int "Priority of the CAN work queue (below sensors, above UI)"
+  default 2
