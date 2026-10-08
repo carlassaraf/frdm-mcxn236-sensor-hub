@@ -16,17 +16,14 @@ pip install -r ../deps/bootloader/mcuboot/scripts/requirements.txt
 pip install smpmgr                                              # SMP host tool
 ```
 
-`imgtool` isn't installed as a command. Call the script directly:
-
-```sh
-IMGTOOL="python ../deps/bootloader/mcuboot/scripts/imgtool.py"
-```
+`imgtool` isn't installed as a command. Call the script directly, as
+`python ../deps/bootloader/mcuboot/scripts/imgtool.py`.
 
 ### Signing key
 
 ```sh
 mkdir -p keys
-$IMGTOOL keygen -k keys/sensor-hub-p256.pem -t ecdsa-p256
+python ../deps/bootloader/mcuboot/scripts/imgtool.py keygen -k keys/sensor-hub-p256.pem -t ecdsa-p256
 chmod 600 keys/sensor-hub-p256.pem
 ```
 
@@ -56,17 +53,11 @@ grep -o "\-\-key [^ ]*" build/app/build.ninja        # must be keys/sensor-hub-p
 ls -l build/app/zephyr/zephyr.signed.bin             # must stay below 483,328 B (slot0 size)
 ```
 
-**Expected console** (J10, 115200 8N1):
-
-```
-*** Booting MCUboot v2.4.0 ***
-I: Starting bootloader
-I: Image index: 0, Swap type: none
-I: Bootloader chainload address offset: 0x14000
-I: Jumping to the first image slot
-```
-
-…followed by the application's own boot banner.
+**Expected console** (J10, 115200 8N1): only the application's boot banner. MCUboot's
+own console is disabled (`CONFIG_UART_CONSOLE=n` in `app/sysbuild/mcuboot.conf`),
+because serial recovery (§4.1) uses the same UART. The MCUboot log lines quoted in §3
+were captured before that change. To see them again, temporarily set
+`CONFIG_MCUBOOT_SERIAL=n` and remove `CONFIG_UART_CONSOLE=n`.
 
 ### Build outputs
 
@@ -89,25 +80,34 @@ west flash -d build/app --bin-file <file.bin>       # any .bin into slot0 (0x100
 SMP shares the console UART (LPUART4 → MCU-Link VCOM). **Close the serial terminal
 first.** Only one program can hold the port.
 
-```sh
-P="--port /dev/tty.usbmodemXXXX --baudrate 115200"    # ls /dev/tty.usbmodem*
-```
+Every smpmgr command below uses this board's port, `/dev/tty.usbmodemOB0HXZ3LOZTXS3`.
+On another board, find yours with `ls /dev/tty.usbmodem*`.
+
+**Always pass `--line-length 128 --line-buffers 8`.** smpmgr normally asks the device for
+its buffer sizes. MCUboot doesn't support that query (the `ENOTSUP` warning), so
+smpmgr falls back to lines longer than MCUboot's 128-char limit. MCUboot drops them
+silently, and the upload sits at 0% forever. These values also work with the app.
+Don't use `--mtu`: it's deprecated and becomes `--line-length <mtu> --line-buffers 1`.
+
+**Pin-reset first.** After `west flash` or any debugger session, the board ignores
+incoming UART data until it gets a pin reset (RESET button or a USB replug). Its own
+output still arrives, so it looks alive.
 
 1. Bump `app/VERSION` (e.g. `PATCHLEVEL`) so the new image can be told apart.
 2. `west build` (**don't** flash).
 3. Upload, mark, reset in one step:
 
    ```sh
-   smpmgr $P upgrade build/app/zephyr/zephyr.signed.bin
+   smpmgr --port /dev/tty.usbmodemOB0HXZ3LOZTXS3 --line-length 128 --line-buffers 8 upgrade build/app/zephyr/zephyr.signed.bin
    ```
 
    Or step by step:
 
    ```sh
-   smpmgr $P image upload build/app/zephyr/zephyr.signed.bin
-   smpmgr $P image state-read                 # slot1 shows the new version, pending=False
-   smpmgr $P image state-write <slot1 hash>   # → pending=True
-   smpmgr $P os reset
+   smpmgr --port /dev/tty.usbmodemOB0HXZ3LOZTXS3 --line-length 128 --line-buffers 8 image upload build/app/zephyr/zephyr.signed.bin
+   smpmgr --port /dev/tty.usbmodemOB0HXZ3LOZTXS3 --line-length 128 --line-buffers 8 image state-read  # slot1 shows the new version, pending=False
+   smpmgr --port /dev/tty.usbmodemOB0HXZ3LOZTXS3 --line-length 128 --line-buffers 8 image state-write <slot1 hash>  # → pending=True
+   smpmgr --port /dev/tty.usbmodemOB0HXZ3LOZTXS3 --line-length 128 --line-buffers 8 os reset
    ```
 
 4. On the console MCUboot logs `Image 0 upgrade secondary slot -> primary slot` and
@@ -134,18 +134,18 @@ make this image. Sign the current build with it, using the same parameters as th
 build (copy them from `build/app/build.ninja` if the config changes):
 
 ```sh
-$IMGTOOL sign --version 0.3.2 --header-size 0x400 --slot-size 483328 --overwrite-only --align 1 \
+python ../deps/bootloader/mcuboot/scripts/imgtool.py sign --version 0.3.2 --header-size 0x400 --slot-size 483328 --overwrite-only --align 1 \
   --key ../deps/bootloader/mcuboot/root-ec-p256.pem \
   build/app/zephyr/zephyr.bin devkey.signed.bin
 
-$IMGTOOL verify -k keys/sensor-hub-p256.pem devkey.signed.bin                        # fails
-$IMGTOOL verify -k ../deps/bootloader/mcuboot/root-ec-p256.pem devkey.signed.bin     # passes
+python ../deps/bootloader/mcuboot/scripts/imgtool.py verify -k keys/sensor-hub-p256.pem devkey.signed.bin                        # fails
+python ../deps/bootloader/mcuboot/scripts/imgtool.py verify -k ../deps/bootloader/mcuboot/root-ec-p256.pem devkey.signed.bin     # passes
 ```
 
 | Delivery | Result |
 |---|---|
 | Debugger into slot0: `west flash -d build/app --bin-file devkey.signed.bin` | MCUboot: `Image in the primary slot is not valid!` / `Unable to find bootable image`. Nothing runs |
-| SMP: `smpmgr $P upgrade devkey.signed.bin` | The app **accepts** the upload (its header is well-formed). At reset, MCUboot rejects it, erases slot1, and **keeps booting the current app** (log below) |
+| SMP: `smpmgr --port /dev/tty.usbmodemOB0HXZ3LOZTXS3 --line-length 128 --line-buffers 8 upgrade devkey.signed.bin` | The app **accepts** the upload (its header is well-formed). At reset, MCUboot rejects it, erases slot1, and **keeps booting the current app** (log below) |
 
 Console after the SMP upload of the dev-key image (captured 2026-10-08):
 
@@ -169,7 +169,7 @@ How to read it:
   one that boots.
 - There's no "erasing" line. MCUboot scrambles an invalid secondary slot silently
   (`boot_scramble_slot()` in `bootutil/src/loader.c`). Afterwards
-  `smpmgr $P image state-read` shows slot1 empty.
+  `smpmgr --port /dev/tty.usbmodemOB0HXZ3LOZTXS3 --line-length 128 --line-buffers 8 image state-read` shows slot1 empty.
 
 The SMP case is the "a bad update can't brick it" property. The app only checks the
 header *format*. The cryptographic check happens in MCUboot.
@@ -202,9 +202,45 @@ gitignored, but they don't belong in the repo dir.
 
 ## 4. Recovery
 
+### 4.1 Serial recovery (no debugger)
+
+MCUboot can take a new image directly into slot0 over the console UART. This is the
+fallback for an image that's validly signed but broken, since this SoC can't do
+test-and-revert (ARCHITECTURE.md).
+
+1. Close the serial terminal.
+2. Hold **SW2** and tap **RESET**. SW3 is ISP and enters the NXP ROM bootloader
+   instead. **Green LED on** = MCUboot is in recovery. The LCD stays dark, and the blue
+   LED (LCD chip select) stays off.
+3. Upload and reboot (`--line-length 128 --line-buffers 8` is required, see §2):
+
+   ```sh
+   smpmgr --port /dev/tty.usbmodemOB0HXZ3LOZTXS3 --line-length 128 --line-buffers 8 image state-read  # MCUboot answers: bootable/confirmed show None
+   smpmgr --port /dev/tty.usbmodemOB0HXZ3LOZTXS3 --line-length 128 --line-buffers 8 image upload build/app/zephyr/zephyr.signed.bin
+   smpmgr --port /dev/tty.usbmodemOB0HXZ3LOZTXS3 --line-length 128 --line-buffers 8 os reset
+   ```
+
+What to expect:
+- **Upload time:** about 70 s for about 450 KB. The first chunk pauses a few seconds
+  while slot0 is erased.
+- **No version handoff:** the upload writes **slot0 directly**. There's no slot1 copy,
+  marking or version check, so any validly signed image can be loaded this way, older
+  ones included.
+- **Signatures still apply at boot:** MCUboot validates slot0 at boot. With
+  `CONFIG_BOOT_SERIAL_NO_APPLICATION=y`, an invalid or partial slot0 (a wrongly signed
+  image or an interrupted upload) puts MCUboot back in recovery (green LED) instead of
+  leaving the board dead.
+
+Config is in `app/sysbuild/mcuboot.conf`. Set
+`CONFIG_BOOT_SERIAL_UNALIGNED_BUFFER_SIZE=128` explicitly: its MCXN default doesn't
+apply to mcxn236, and the fallback of 64 is smaller than the 128-byte flash write block.
+
+### 4.2 Recovery table
+
 | Situation | Fix |
 |---|---|
-| A rejected app in slot0 | `west flash --domain app` (a correctly signed build) |
+| A broken but validly signed app in slot0 | Serial recovery (§4.1) |
+| A rejected app in slot0 | Serial recovery (§4.1), or `west flash --domain app` (a correctly signed build) |
 | A rejected update in slot1 | Nothing to do. MCUboot erased it and kept the old app |
 | A broken or erased MCUboot, or a key change | `west flash` (both images) |
 | Anything weird | Mass erase with LinkServer/pyocd, then `west flash` |
@@ -223,4 +259,7 @@ this SoC where mistakes are permanent.
 | `MCUBoot bootloader key file` path not found | A relative key path. Use `${WEST_TOPDIR}/…` or an absolute path |
 | MCUmgr Kconfig warnings, SMP silently missing | `zcbor` missing from the `west.yml` allowlist, or `west update` not run |
 | smpmgr times out | The serial terminal still holds the port, wrong `/dev/tty.usbmodem*`, or heavy logging during upload |
+| smpmgr times out on everything, but the app log prints fine | No pin reset since `west flash` or a debugger session (§2) |
+| Upload in recovery stuck at 0% | `--line-length 128 --line-buffers 8` missing (§2) |
+| SW2 + RESET boots the app anyway (no green LED) | The wrong button. SW2 = WAKEUP (P0_20), SW3 = ISP |
 | Upload OK, nothing changes after reset | The image wasn't marked (`pending=False`) |
