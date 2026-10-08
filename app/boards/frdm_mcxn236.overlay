@@ -4,6 +4,8 @@
 #include <zephyr/dt-bindings/regulator/nxp_vref.h>
 #include <nxp/mcx/MCXN236VDF-pinctrl.h>
 
+#include "../dts/partitions.dtsi"
+
 &gpio2 {
   status = "okay";
 };

@@ -1,0 +1,18 @@
+/* Shared by the app and MCUboot (via sysbuild/mcuboot.overlay) - they must agree */
+/delete-node/ &slot0_partition;
+/delete-node/ &slot1_partition;
+/delete-node/ &storage_partition;
+
+&flash {
+	partitions {
+		slot0_partition: partition@14000 {
+			label = "image-0";
+			reg = <0x00014000 DT_SIZE_K(472)>;
+		};
+
+		slot1_partition: partition@8a000 {
+			label = "image-1";
+			reg = <0x0008a000 DT_SIZE_K(472)>;
+		};
+	};
+};
