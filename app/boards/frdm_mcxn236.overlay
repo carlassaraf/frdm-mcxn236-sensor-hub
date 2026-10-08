@@ -33,6 +33,27 @@
   };
 };
 
+&pinctrl {
+  pinmux_flexcan0: pinmux_flexcan0 {
+    group0 {
+      pinmux = <CAN0_TXD_PIO1_10>, <CAN0_RXD_PIO1_11>;
+      slew-rate = "fast";
+      drive-strength = "low";
+      input-enable;
+    };
+  };
+};
+
+&flexcan0 {
+  status = "okay";
+  pinctrl-0 = <&pinmux_flexcan0>;
+  pinctrl-names = "default";
+};
+
+&flexcan1 {
+  status = "disabled";
+};
+
 /* External reference, high-power mode -- matches the board's own ADC sample overlay */
 &vref {
   regulator-initial-mode = <NXP_VREF_MODE_HIGH_POWER>;
