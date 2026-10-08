@@ -381,12 +381,23 @@ Remaining:
 
 **Requisites:** sysbuild, `imgtool`, your own ECDSA keypair for anything beyond initial bring-up.
 
-- [ ] Build with sysbuild: `west build --sysbuild -- -DSB_CONFIG_BOOTLOADER_MCUBOOT=y`
-- [ ] Confirm the default MCUboot dev key works end-to-end first
-- [ ] Generate your own keypair (`imgtool keygen`), point `SB_CONFIG_BOOT_SIGNATURE_KEY_FILE` at it, keep the private key out of the repo
-- [ ] Negative test: confirm an unsigned/corrupted image is rejected by MCUboot
-- [ ] *(Stretch)* wire up `mcumgr`/SMP server to demonstrate a signed firmware update over UART/USB
-- [ ] Document explicitly: no TF-M/TrustZone-M secure/non-secure split exists for this SoC in upstream Zephyr yet — this is MCUboot chain-of-trust, not isolated worlds
+- [x] Build with sysbuild: `west build --sysbuild -- -DSB_CONFIG_BOOTLOADER_MCUBOOT=y`
+- [x] Confirm the default MCUboot dev key works end-to-end first
+- [x] Generate your own keypair (`imgtool keygen`), point `SB_CONFIG_BOOT_SIGNATURE_KEY_FILE` at it, keep the private key out of the repo
+- [x] Negative test: confirm an unsigned/corrupted image is rejected by MCUboot
+- [x] *(Stretch)* wire up `mcumgr`/SMP server to demonstrate a signed firmware update over UART/USB
+      — UART done (console UART, +16 KB). USB CDC-ACM measured at +42 KB, which leaves almost
+      nothing in slot0, so it's deferred. Procedures: [docs/secure-boot.md](docs/secure-boot.md)
+- [x] MCUboot serial recovery (SW2 at reset → upload over UART). This is the only
+      fallback for a validly signed but broken image, since this SoC can't do MCUboot
+      test-and-revert (128-byte flash writes, see ARCHITECTURE.md). Procedure:
+      [docs/secure-boot.md §4.1](docs/secure-boot.md)
+- [ ] *(Next)* Downgrade prevention: `CONFIG_MCUBOOT_DOWNGRADE_PREVENTION=y` in
+      `app/sysbuild/mcuboot.conf` (there's no `SB_CONFIG_` form in v4.4.2), plus
+      `CONFIG_MCUBOOT_BOOTLOADER_NO_DOWNGRADE=y` in the app (reporting only). Serial recovery
+      bypasses it by design
+- [x] Document explicitly: no TF-M/TrustZone-M secure/non-secure split exists for this SoC in upstream Zephyr yet — this is MCUboot chain-of-trust, not isolated worlds
+      (see ARCHITECTURE.md, "Boot chain & image security")
 
 ## 8. Low power
 

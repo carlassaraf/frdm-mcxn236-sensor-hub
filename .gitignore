@@ -1,2 +1,5 @@
 build
 .vscode
+keys
+# Throwaway images from the secure-boot negative tests (docs/secure-boot.md)
+/*.bin
