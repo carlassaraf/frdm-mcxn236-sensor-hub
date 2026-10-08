@@ -10,4 +10,5 @@ manifest:
           - cmsis_6
           - hal_nxp
           - lvgl
+          - mcuboot
         path-prefix: deps
