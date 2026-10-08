@@ -11,4 +11,5 @@ manifest:
           - hal_nxp
           - lvgl
           - mcuboot
+          - zcbor
         path-prefix: deps
