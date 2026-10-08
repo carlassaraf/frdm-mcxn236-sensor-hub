@@ -157,6 +157,16 @@ static void ui_go_to_screen(screen_id_t next)
   s_pending_screen = next;
 }
 
+void ui_manager_wake(void)
+{
+  struct device_status_device dev;
+  device_status_get_device(&dev);
+  if (dev.display_sleeping) {
+    device_status_set_display_sleeping(false);
+    LOG_INF("Display awake");
+  }
+}
+
 /**
  * @brief SW2/SW3 gpio-keys handler. SW3 (INPUT_KEY_0) cycles through the
  * dashboard screens, SW2 (INPUT_KEY_WAKEUP) toggles display sleep.
