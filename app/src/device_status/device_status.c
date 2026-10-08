@@ -91,13 +91,14 @@ void device_status_set_environment(float value, float voltage, device_status_t s
 }
 
 void device_status_set_can(bool loopback_ok, uint32_t frame_id, uint32_t tx_interval_ms,
-                            uint32_t tx_count, device_status_t status)
+                            uint32_t tx_count, uint32_t rx_count, device_status_t status)
 {
   k_mutex_lock(&s_mutex, K_FOREVER);
   s_status.can.loopback_ok = loopback_ok;
   s_status.can.frame_id = frame_id;
   s_status.can.tx_interval_ms = tx_interval_ms;
   s_status.can.tx_count = tx_count;
+  s_status.can.rx_count = rx_count;
 
   device_status_t prev = s_status.can.status;
   s_status.can.status = status;
