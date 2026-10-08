@@ -5,6 +5,7 @@
 #include <zephyr/app_version.h>
 
 #include "device_status.h"
+#include "can_service.h"
 #include "ui_manager.h"
 #include "mq.h"
 #if defined(CONFIG_TILT_SIM)
@@ -162,6 +163,11 @@ int main(void)
   }
 #endif
 
+  // Logs its own failure and reports it as a CAN fault on screen
+  int ret = can_service_start();
+  if (ret != 0) {
+    return ret;
+  }
   return 0;
 }
 
@@ -174,3 +180,16 @@ static void device_status_uptime_update(struct k_work *work)
   device_status_set_uptime(uptime_s);
   k_work_reschedule(&uptime_work, K_SECONDS(1));
 }
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(flexcan0))
+#include <zephyr/init.h>
+#include <fsl_clock.h>
+
+static int flexcan0_clock_init(void)
+{
+  CLOCK_SetClkDiv(kCLOCK_DivFlexcan0Clk, 3U);
+  CLOCK_AttachClk(kPLL0_to_FLEXCAN0);
+  return 0;
+}
+SYS_INIT(flexcan0_clock_init, PRE_KERNEL_1, 0);
+#endif
