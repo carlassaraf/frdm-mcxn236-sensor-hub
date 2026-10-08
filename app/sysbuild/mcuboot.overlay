@@ -4,4 +4,8 @@
 	chosen {
 		zephyr,code-partition = &boot_partition;
 	};
+
+	aliases {
+		mcuboot-led0 = &green_led;
+	};
 };
