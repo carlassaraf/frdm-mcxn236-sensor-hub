@@ -25,12 +25,10 @@ static void scrCan_draw(bool force)
     lv_label_set_text_fmt(ui_canTxIntervalV, "%u ms", can.tx_interval_ms);
   }
 
-  if(force || s_drawn.tx_count != can.tx_count) {
-    // Loopback mode hands every TX frame straight back as RX, so TX == RX is
-    // exactly what the loopback self-test is proving right now. Swap the
-    // second value for a real can_rx_count once an RX filter callback exists
-    // for a physical bus (see ROADMAP.md's CAN section).
-    lv_label_set_text_fmt(ui_canCountV, "%u / %u", can.tx_count, can.tx_count);
+  if(force || s_drawn.tx_count != can.tx_count || s_drawn.rx_count != can.rx_count) {
+    // In loopback every TX frame should come back as RX, so the two only
+    // diverge when an echo is lost
+    lv_label_set_text_fmt(ui_canCountV, "%u / %u", can.tx_count, can.rx_count);
   }
 
   s_drawn = can;

@@ -1,0 +1,3 @@
+add_library(can_service can_service.c)
+target_include_directories(can_service PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(can_service PRIVATE can_protocol device_status ui_manager zephyr_interface kernel)

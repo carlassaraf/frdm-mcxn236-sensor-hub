@@ -62,6 +62,7 @@ struct device_status_can {
   uint32_t frame_id;
   uint32_t tx_interval_ms;
   uint32_t tx_count;
+  uint32_t rx_count;
   device_status_t status;
 };
 
@@ -82,7 +83,7 @@ void device_status_set_tilt(float x, float y, float z, device_status_t status);
 void device_status_set_environment_identity(const char *sensor_name, uint8_t channel);
 void device_status_set_environment(float value, float voltage, device_status_t status);
 void device_status_set_can(bool loopback_ok, uint32_t frame_id, uint32_t tx_interval_ms,
-                            uint32_t tx_count, device_status_t status);
+                            uint32_t tx_count, uint32_t rx_count, device_status_t status);
 void device_status_set_active_screen(screen_id_t screen);
 void device_status_set_display_sleeping(bool is_sleeping);
 

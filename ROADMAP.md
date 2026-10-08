@@ -370,11 +370,11 @@ Remaining:
 
 ## 6. CAN (FlexCAN, loopback only)
 
-- [ ] Enable `CONFIG_CAN=y`; confirm `can0` node status in the overlay
-- [ ] Configure `CAN_MODE_LOOPBACK` at init
-- [ ] Define a simple telemetry frame layout (accel + distance) and one command frame ID (e.g. "wake + refresh now")
-- [ ] TX thread sends telemetry every N ms; RX filter/callback decodes command frames and submits the wake `k_work`
-- [ ] Verify TX == RX end-to-end in loopback via shell/log
+- [x] Enable `CONFIG_CAN=y`; confirm `can0` node status in the overlay
+- [x] Configure `CAN_MODE_LOOPBACK` at init
+- [x] Define a simple telemetry frame layout (accel + distance) and one command frame ID (e.g. "wake + refresh now")
+- [x] TX thread sends telemetry every N ms; RX filter/callback decodes command frames and submits the wake `k_work`
+- [x] Verify TX == RX end-to-end in loopback via shell/log
 - [ ] *(Not now, documented as a future extension)* real bus access via USB-CAN adapter or a second board
 
 ## 7. Secure boot (MCUboot)

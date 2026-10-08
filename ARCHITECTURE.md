@@ -126,7 +126,7 @@ grouped into per-section sub-structs, embedded by value:
 | `device` | `active_screen`, `display_sleeping` | UI Manager only | — / sleep overlay |
 | `tilt` | `x`, `y`, `z`, `status` | Sensor service | Tilt, Overview (status) |
 | `environment` | `value`, `sensor_name`, `channel`, `voltage`, `status` | Sensor service | Environment, Overview (status) |
-| `can` | `loopback_ok`, `frame_id`, `tx_interval_ms`, `tx_count`, `status` | CAN service | Can, Overview (status) |
+| `can` | `loopback_ok`, `frame_id`, `tx_interval_ms`, `tx_count`, `rx_count`, `status` | CAN service | Can, Overview (status) |
 
 **Sections are for readability, not locking**: there's still a single mutex over the
 whole struct and `device_status_get()` still copies all of it. Embedding by value costs
@@ -244,7 +244,6 @@ shrink back down once it does.
   intentional (e.g. start pinned at 0, end at the reading, to visualize
   deviation-from-center) or should collapse to a single value before the Tilt adapter
   is written.
-- `device_status`'s CAN fields have no `can_rx_count` — only `can_tx_count` — but the
-  Can screen's static label reads "TX / RX count" and its placeholder shows a TX/RX
-  pair. Needs either a new `can_rx_count` field/setter (matches the existing
-  one-setter-per-producer pattern) or simplifying the widget to TX-only.
+- ~~`device_status`'s CAN fields have no `can_rx_count`~~ — resolved: `rx_count` added to
+  the `can` section and `device_status_set_can()`; the CAN service counts looped-back
+  telemetry echoes into it.
