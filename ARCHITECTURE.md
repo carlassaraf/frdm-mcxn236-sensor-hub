@@ -218,6 +218,135 @@ shrink back down once it does.
   regenerate-anytime artifacts: all hand-written orchestration lives in new files
   alongside them, never edited into them.
 
+## Boot chain & image security (MCUboot)
+
+The build is a sysbuild with two images: MCUboot and the application. MCUboot runs
+first on every reset, verifies the application image in slot0, and jumps to it only if
+the verification passes (ROADMAP §7).
+
+```mermaid
+flowchart LR
+    ROM[MCXN ROM] -- "no verification<br/>(ROM secure boot not enabled)" --> MCUBOOT
+    MCUBOOT[MCUboot @ 0x0<br/>holds the public key] -- "SHA-256 + ECDSA-P256<br/>signature check" --> APP[Application @ slot0]
+    MCUBOOT -. "invalid → refuses to boot,<br/>stays in bootloader" .-> HALT((halt))
+```
+
+### What it is and what it isn't
+
+- **It is** an MCUboot chain of trust. `imgtool` signs the application at build time
+  with the private key. MCUboot holds the matching public key, compiled in, and refuses
+  any slot0 image that has a bad header, a hash mismatch, or a signature from another key.
+- **It is not** TrustZone-M isolation. Upstream Zephyr (v4.4.2, what this project pins)
+  has no TF-M secure/non-secure split for the MCXN236: there's no `_ns` board variant
+  and no TF-M platform. Everything runs in a single secure world, and MCUboot and the
+  app share the same privileges.
+- **It is not** anchored in hardware. The MCXN ROM doesn't verify MCUboot (ROM
+  secure boot / CMPA key hash isn't provisioned) and SWD stays open. Anyone with a
+  debugger can replace MCUboot, its public key, or the whole flash. What this setup
+  guarantees is that *software already running on the device* only boots images signed
+  by our key, for example after an update over a serial link. It does **not** protect
+  against physical access. Closing that gap means provisioning ROM secure boot and
+  locking debug, which can be irreversible on this SoC. That's deliberately out of
+  scope for a dev board.
+- **It is not** confidentiality. Images are signed, not encrypted (encryption is a
+  ROADMAP §10 stretch).
+
+### Flash map
+
+The board's default slots (440 KB each) are too small for the signed application, and
+in Zephyr v4.4.2 the default slot1 also overlapped `storage_partition` by 8 KB. The
+layout is overridden in `app/dts/partitions.dtsi`:
+
+| Partition | Offset | Size | Contents |
+|---|---|---|---|
+| `boot_partition` | `0x00000` | 80 KB | MCUboot (~35 KB used) |
+| `slot0_partition` | `0x14000` | 472 KB | Running application (signed image) |
+| `slot1_partition` | `0x8A000` | 472 KB | Update staging (ends at `0x100000`, top of 1 MB flash) |
+| ~~`storage_partition`~~ | — | — | Removed. Nothing uses NVS or settings |
+
+**The signed image has only ~8 KB of free space in slot0** (483,328 B slot vs
+~475 KB signed image). Every feature that grows the image should be checked against
+this limit.
+
+### Build configuration and the two traps
+
+| File | Applies to | Purpose |
+|---|---|---|
+| `app/sysbuild.conf` | sysbuild | Enables MCUboot, ECDSA-P256, the signing key path |
+| `app/dts/partitions.dtsi` | both images | **The only place the flash map is defined** |
+| `app/boards/frdm_mcxn236.overlay` | app | `#include`s the partitions |
+| `app/sysbuild/mcuboot.overlay` | MCUboot | `#include`s the partitions **and** restores `zephyr,code-partition = &boot_partition` |
+
+1. **The two images get separate devicetrees.** A partition change in the app's board
+   overlay alone leaves MCUboot with the old map. MCUboot then sees the image as too
+   large for slot0 and rejects it (`Image in the primary slot is not valid!`). That's
+   why both overlays include one shared file.
+2. **`sysbuild/mcuboot.overlay` replaces MCUboot's own `boot/zephyr/app.overlay`**
+   (it becomes MCUboot's `DTC_OVERLAY_FILE`). That file is what sets the
+   `boot_partition` chosen node. Without it, MCUboot gets linked at slot0's address
+   instead of `0x0`. Check with
+   `grep FLASH_LOAD_OFFSET build/*/zephyr/.config`: it should show `0x0` for `mcuboot`
+   and `0x14000` for `app`.
+
+### Keys
+
+- `SB_CONFIG_BOOT_SIGNATURE_KEY_FILE` points at `keys/sensor-hub-p256.pem` via
+  `${WEST_TOPDIR}`. It has to be an absolute path: MCUboot resolves relative paths
+  against its own source dir, not the app's. `keys/` is gitignored, and **the private
+  key lives only outside version control, so it needs its own backup**. If it's lost,
+  this MCUboot can no longer accept new images, and the only fix is reflashing MCUboot
+  with a new key over SWD.
+- The public key is compiled into MCUboot, so **changing keys means reflashing
+  MCUboot**, not just the app.
+- Never ship the MCUboot dev key (`root-ec-p256.pem`): its private half is public in the
+  MCUboot repo, so anyone can sign images it accepts.
+
+### Upgrade mode
+
+`MCUBOOT_MODE_OVERWRITE_ONLY` (the board's sysbuild default). A valid image in slot1
+is copied over slot0 at reset. There's **no test or revert step**: once copied, the old
+image is gone. If a validly signed image misbehaves at runtime, the only way back is
+another update.
+
+**Test-and-revert isn't available on this SoC** (checked 2026-10-08, MCUboot v2.4.0).
+The MCXN236 flash has a 128-byte write block (`write-block-size = <128>`). MCUboot's
+swap modes (move/offset/scratch) fail a static assert that requires a write alignment of
+8–32 bytes. Direct-XIP/RAM-load *with revert* also fail, because `imgtool sign` only
+accepts `--align` up to 32. That's why the board's `Kconfig.sysbuild` defaults to
+overwrite-only. Fallback has to come from elsewhere: MCUboot serial recovery to
+re-upload a known-good image, plus downgrade prevention.
+
+### Firmware update path (SMP over UART)
+
+The app runs an MCUmgr/SMP server on the console UART (LPUART4, the MCU-Link VCOM),
+shared with logging via `UART_CONSOLE_MCUMGR`. A host tool (`smpmgr`) uploads a signed
+image into **slot1** while the app keeps running. Once the image is marked pending,
+MCUboot verifies it at the next reset and copies it over slot0.
+
+- **The app is not part of the trust chain.** img_mgmt only checks that the upload
+  *looks like* an MCUboot image (header magic). The signature check is MCUboot's. An
+  update signed with the wrong key uploads fine and is then rejected and erased by
+  MCUboot, and the old app keeps running.
+- Cost: about **+16 KB** of app flash (measured 2026-10-08). SMP over USB CDC-ACM was
+  measured at about +42 KB, which leaves almost nothing in slot0, so it's deferred.
+- Needs `zcbor` in the `west.yml` allowlist. Without it, MCUmgr gets silently disabled
+  with only a Kconfig warning.
+
+### Verified behavior
+
+| Board has MCUboot with | Image | Delivered via | Result |
+|---|---|---|---|
+| dev key | dev key | debugger | boots |
+| dev key | project key | debugger | rejected: `Image in the primary slot is not valid!` |
+| project key | project key | debugger | boots |
+| project key | project key, newer version | SMP + mark pending | copied slot1 → slot0, new version boots |
+| project key | dev key | SMP | upload accepted. At reset: `Swap type: test` → `Image in the secondary slot is not valid!`, slot1 erased (silently), **old app keeps running** (`Image version: v0.3.1`) |
+| any | partition map mismatch between images | debugger | rejected (trap 1 above) |
+
+Recovery from any rejected image: `west flash --domain app` with a correctly signed
+build, or `west flash` to rewrite both images. SWD is always available. Step-by-step
+procedures for all of the above are in [docs/secure-boot.md](docs/secure-boot.md).
+
 ## Known follow-ups / open questions
 
 - The display's GPIO-bitbang flush cost is currently unmeasured; the rate-cap floor
